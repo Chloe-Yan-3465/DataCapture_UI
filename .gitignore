@@ -1,0 +1,59 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python build and packaging output
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Runtime logs and captured data
+*.log
+BLE-TimeSync/logs/*
+!BLE-TimeSync/logs/.gitkeep
+VIVE-Tracker_capture/vr_captures/
+VIVE-Tracker_capture/captures/
+
+# Machine-specific device mapping
+VIVE-Tracker_capture/tracker_roles.json
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+BLE-TimeSync/reference/ble-miniProgram/project.private.config.json
+
+# Preserved metadata from repositories nested before monorepo initialization
+.git-history-backup/
+
+# JavaScript dependencies and test output
+node_modules/
+coverage/
+
+# Editors and operating systems
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+~$*

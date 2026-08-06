@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>联合数据采集</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">LOCAL CAPTURE CONSOLE</p>
+        <h1>联合数据采集</h1>
+        <p class="subtitle">BLE 时间同步 · VIVE Tracker 位姿</p>
+      </div>
+      <div id="clock" class="clock">--:--:--</div>
+    </header>
+
+    <section class="control-card">
+      <div class="overall-status">
+        <span id="phase-dot" class="status-dot idle"></span>
+        <div>
+          <div id="phase-label" class="phase-label">准备就绪</div>
+          <div id="phase-message" class="phase-message">正在读取系统状态…</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="bind-button" class="button secondary">绑定 Tracker 角色</button>
+        <button id="ble-button" class="button secondary">启动 BLE 授时</button>
+        <label class="rate-field">
+          <span>Tracker 采样率</span>
+          <span class="input-wrap"><input id="tracker-rate" type="number" min="1" max="1000" step="1" value="120"><b>Hz</b></span>
+        </label>
+        <button id="start-button" class="button primary" disabled>开始</button>
+        <button id="stop-button" class="button danger" disabled>停止</button>
+      </div>
+      <div class="gateway-bar">
+        <span class="gateway-title">蓝牙网关</span>
+        <div id="gateway-list" class="gateway-list">
+          <span class="gateway-empty">暂无已连接设备</span>
+        </div>
+        <div class="gateway-legend" aria-label="网关状态灯图例">
+          <span><i class="gateway-dot idle"></i>IDLE</span>
+          <span><i class="gateway-dot waiting"></i>等待 ACK</span>
+          <span><i class="gateway-dot running"></i>RUNNING</span>
+          <span><i class="gateway-dot error"></i>ERROR</span>
+          <span><i class="gateway-dot ota"></i>OTA</span>
+        </div>
+      </div>
+      <div id="notice" class="notice" hidden></div>
+      <div id="preflight" class="preflight"></div>
+    </section>
+
+    <section class="terminal-grid">
+      <article class="terminal-card">
+        <header class="terminal-header">
+          <div>
+            <h2>BLE-TimeSync</h2>
+            <p>网关扫描、校准与 START / STOP</p>
+          </div>
+          <span id="ble-status" class="pill stopped">未运行</span>
+        </header>
+        <div id="ble-log" class="terminal" role="log" aria-live="polite"></div>
+      </article>
+
+      <article class="terminal-card">
+        <header class="terminal-header">
+          <div>
+            <h2>VIVE Tracker</h2>
+            <p>OpenXR 位姿采集与落盘状态</p>
+          </div>
+          <span id="vive-status" class="pill stopped">未运行</span>
+        </header>
+        <div id="vive-log" class="terminal" role="log" aria-live="polite"></div>
+      </article>
+    </section>
+
+    <footer>
+      <span id="output-path">VIVE 输出目录：尚未开始</span>
+      <button id="clear-button" class="text-button">清空屏幕日志</button>
+    </footer>
+  </main>
+  <script src="/app.js?v=20260806-4"></script>
+</body>
+</html>

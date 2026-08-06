@@ -1,0 +1,19 @@
+/* app.wxss — 全局样式 */
+page {
+  --bg-primary: #0f0f23;
+  --bg-card: #1a1a2e;
+  --bg-card-hover: #24243e;
+  --text-primary: #e0e0e0;
+  --text-secondary: #8888aa;
+  --accent-blue: #4a9eff;
+  --accent-green: #00d26a;
+  --accent-orange: #ff9500;
+  --accent-red: #ff3b3b;
+  --border-color: #2a2a4a;
+
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 28rpx;
+  line-height: 1.5;
+}

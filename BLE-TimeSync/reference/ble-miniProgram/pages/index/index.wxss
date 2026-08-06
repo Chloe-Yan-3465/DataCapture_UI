@@ -1,0 +1,355 @@
+/* pages/index/index.wxss */
+
+.container {
+  padding: 20rpx;
+  min-height: 100vh;
+}
+
+/* ==================== 头部 ==================== */
+.header {
+  text-align: center;
+  padding: 30rpx 0 20rpx;
+}
+
+.title {
+  display: block;
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+.subtitle {
+  display: block;
+  font-size: 24rpx;
+  color: #8888aa;
+  margin-top: 8rpx;
+}
+
+/* ==================== 卡片 ==================== */
+.card {
+  background: #1a1a2e;
+  border: 1rpx solid #2a2a4a;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid #2a2a4a;
+}
+
+.card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.card-action {
+  font-size: 24rpx;
+  color: #4a9eff;
+  padding: 4rpx 12rpx;
+}
+
+/* ==================== 状态指示灯 ==================== */
+.status-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-red { background: #ff3b3b; box-shadow: 0 0 8rpx #ff3b3b; }
+.dot-orange { background: #ff9500; box-shadow: 0 0 8rpx #ff9500; }
+.dot-green { background: #00d26a; box-shadow: 0 0 8rpx #00d26a; }
+.dot-grey { background: #555; }
+
+.dot-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ==================== 状态行 ==================== */
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8rpx 0;
+}
+
+.label {
+  font-size: 26rpx;
+  color: #8888aa;
+  flex-shrink: 0;
+}
+
+.value {
+  font-size: 26rpx;
+  color: #e0e0e0;
+  text-align: right;
+}
+
+.mono {
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.text-green { color: #00d26a; }
+.text-orange { color: #ff9500; }
+.text-red { color: #ff3b3b; }
+.text-secondary { color: #8888aa; }
+
+.picker-value {
+  color: #4a9eff;
+}
+
+/* ==================== 设备列表 ==================== */
+.device-list {
+  margin: 16rpx 0;
+}
+
+.device-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 20rpx;
+  background: #24243e;
+  border-radius: 12rpx;
+  margin-bottom: 10rpx;
+}
+
+.device-item:active {
+  background: #2e2e4e;
+}
+
+.device-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.device-name {
+  font-size: 28rpx;
+  color: #e0e0e0;
+}
+
+.device-rssi {
+  font-size: 22rpx;
+  color: #8888aa;
+  margin-top: 4rpx;
+}
+
+.device-connect-text {
+  font-size: 26rpx;
+  color: #4a9eff;
+  font-weight: 500;
+}
+
+/* ==================== 按钮 ==================== */
+.btn-row {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.btn {
+  flex: 1;
+  height: 72rpx;
+  line-height: 72rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  border-radius: 12rpx;
+  border: none;
+  text-align: center;
+  padding: 0;
+}
+
+.btn::after {
+  border: none;
+}
+
+.btn-primary {
+  background: #4a9eff;
+  color: #fff;
+}
+
+.btn-primary[disabled] {
+  background: #3a5a7a;
+  color: #8888aa;
+}
+
+.btn-secondary {
+  background: #2a2a4a;
+  color: #e0e0e0;
+}
+
+.btn-secondary[disabled] {
+  background: #1e1e3a;
+  color: #555;
+}
+
+.btn-warning {
+  background: #ff9500;
+  color: #fff;
+}
+
+.btn-danger {
+  background: #ff3b3b;
+  color: #fff;
+}
+
+/* ==================== 精度测量 - 指标网格 ==================== */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+
+.metric-item {
+  background: #24243e;
+  border-radius: 12rpx;
+  padding: 20rpx 16rpx;
+  text-align: center;
+}
+
+.metric-value {
+  display: block;
+  font-size: 36rpx;
+  font-weight: 700;
+  font-family: 'Courier New', Courier, monospace;
+  color: #e0e0e0;
+}
+
+.metric-label {
+  display: block;
+  font-size: 22rpx;
+  color: #8888aa;
+  margin-top: 8rpx;
+}
+
+/* RTT 颜色分级 */
+.rtt-good { color: #00d26a; }
+.rtt-ok { color: #ff9500; }
+.rtt-bad { color: #ff3b3b; }
+
+/* ==================== 统计详情 ==================== */
+.stats-section {
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #2a2a4a;
+}
+
+.section-label {
+  display: block;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #8888aa;
+  margin-bottom: 10rpx;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6rpx 20rpx;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4rpx 0;
+}
+
+.stat-row .label {
+  font-size: 24rpx;
+}
+
+.stat-row .value {
+  font-size: 24rpx;
+}
+
+/* ==================== 精度评估 ==================== */
+.accuracy-summary {
+  background: #24243e;
+  border-radius: 12rpx;
+  padding: 16rpx;
+}
+
+.accuracy-text {
+  display: block;
+  font-size: 24rpx;
+  color: #8888aa;
+  margin-bottom: 8rpx;
+}
+
+.accuracy-highlight {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #00d26a;
+  font-family: 'Courier New', Courier, monospace;
+  margin-bottom: 4rpx;
+}
+
+.drift-info {
+  margin-top: 8rpx;
+  color: #ff9500;
+}
+
+/* ==================== 日志 ==================== */
+.log-scroll {
+  max-height: 400rpx;
+  border-radius: 8rpx;
+}
+
+.log-empty {
+  text-align: center;
+  padding: 40rpx 0;
+  color: #555;
+  font-size: 24rpx;
+}
+
+.log-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 8rpx 12rpx;
+  border-bottom: 1rpx solid #1a1a2e;
+  background: #24243e;
+  border-radius: 6rpx;
+  margin-bottom: 4rpx;
+}
+
+.log-error {
+  background: #2a1a1a;
+}
+
+.log-time {
+  font-size: 22rpx;
+  color: #8888aa;
+  font-family: 'Courier New', Courier, monospace;
+  flex-shrink: 0;
+  margin-right: 12rpx;
+  min-width: 140rpx;
+}
+
+.log-content {
+  font-size: 22rpx;
+  color: #ccc;
+  font-family: 'Courier New', Courier, monospace;
+  word-break: break-all;
+}
+
+.log-error-text {
+  color: #ff3b3b;
+}
+
+/* ==================== 底部 ==================== */
+.footer-space {
+  height: 60rpx;
+}

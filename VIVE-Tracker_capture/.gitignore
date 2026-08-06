@@ -1,0 +1,18 @@
+# Generated device mapping (contains machine-specific Tracker serial numbers)
+tracker_roles.json
+
+# Capture output
+vr_captures/
+captures/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini

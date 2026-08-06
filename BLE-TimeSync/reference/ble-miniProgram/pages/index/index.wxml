@@ -1,0 +1,206 @@
+<!--pages/index/index.wxml-->
+
+<view class="container">
+  <!-- 标题 -->
+  <view class="header">
+    <text class="title">数采系统授时</text>
+    <text class="subtitle">BLE 时间同步工具</text>
+  </view>
+
+  <!-- ==================== 设备连接区域 ==================== -->
+  <view class="card">
+    <view class="card-header">
+      <text class="card-title">📡 设备连接</text>
+      <view class="status-dot {{bleStatus === 'connected' ? 'dot-green' : bleStatus === 'connecting' ? 'dot-orange' : 'dot-red'}}"></view>
+    </view>
+
+    <!-- 连接状态 -->
+    <view class="status-row">
+      <text class="label">状态:</text>
+      <text class="value {{bleStatus === 'connected' ? 'text-green' : bleStatus === 'connecting' ? 'text-orange' : 'text-red'}}">{{statusText}}</text>
+    </view>
+
+    <view wx:if="{{connectedDeviceName}}" class="status-row">
+      <text class="label">设备:</text>
+      <text class="value">{{connectedDeviceName}}</text>
+    </view>
+
+    <!-- 扫描到的设备列表 -->
+    <view wx:if="{{!bleConnected && discoveredDevices.length > 0}}" class="device-list">
+      <view wx:for="{{discoveredDevices}}" wx:key="deviceId"
+            class="device-item" bindtap="onDeviceTap" data-device="{{item}}">
+        <view class="device-info">
+          <text class="device-name">{{item.name}}</text>
+          <text class="device-rssi">RSSI: {{item.RSSI}} dBm</text>
+        </view>
+        <text class="device-connect-text">连接</text>
+      </view>
+    </view>
+
+    <!-- 按钮区 -->
+    <view class="btn-row">
+      <button wx:if="{{!bleConnected}}" class="btn btn-primary" bindtap="onScanTap" disabled="{{scanning}}">
+        {{scanning ? '扫描中...' : '搜索设备'}}
+      </button>
+      <button wx:if="{{!bleConnected}}" class="btn btn-secondary" bindtap="onMockConnectTap" style="margin-left: 10rpx;">
+        模拟连接
+      </button>
+      <button wx:if="{{bleConnected}}" class="btn btn-danger" bindtap="onDisconnectTap">
+        断开连接
+      </button>
+    </view>
+  </view>
+
+  <!-- ==================== 时间同步控制 ==================== -->
+  <view class="card" wx:if="{{bleConnected}}">
+    <view class="card-header">
+      <text class="card-title">⏱ 时间同步</text>
+      <view class="status-dot {{syncRunning ? 'dot-green dot-pulse' : 'dot-grey'}}"></view>
+    </view>
+
+    <view class="status-row">
+      <text class="label">当前时间:</text>
+      <text class="value mono">{{currentTime}}</text>
+    </view>
+
+    <view class="status-row">
+      <text class="label">同步状态:</text>
+      <text class="value {{syncModeText === '校准中...' ? 'text-orange' : (syncRunning ? 'text-green' : 'text-secondary')}}">
+        {{syncModeText}}
+      </text>
+    </view>
+
+    <view wx:if="{{lastSyncTime}}" class="status-row">
+      <text class="label">上次同步:</text>
+      <text class="value">{{lastSyncTime}}</text>
+    </view>
+
+    <!-- 同步间隔设置 -->
+    <view class="status-row">
+      <text class="label">同步间隔:</text>
+      <picker mode="selector" range="{{intervalOptions}}" range-key="label"
+              value="{{intervalIndex}}" bindchange="onIntervalChange">
+        <text class="value picker-value">{{intervalOptions[intervalIndex].label}} ▼</text>
+      </picker>
+    </view>
+
+    <!-- 按钮区 -->
+    <view class="btn-row">
+      <button class="btn {{syncRunning ? 'btn-warning' : 'btn-primary'}}" bindtap="onSyncToggle">
+        {{syncRunning ? '⏸ 暂停' : '▶ 开始同步'}}
+      </button>
+      <button class="btn btn-secondary" bindtap="onSyncOnce" disabled="{{syncRunning}}">
+        单次同步
+      </button>
+    </view>
+  </view>
+
+  <!-- ==================== 精度测量 ==================== -->
+  <view class="card" wx:if="{{bleConnected && stats.totalSyncs > 0}}">
+    <view class="card-header">
+      <text class="card-title">📊 精度测量</text>
+      <text class="card-action" bindtap="onResetStats">重置</text>
+    </view>
+
+    <!-- 关键指标 -->
+    <view class="metrics-grid">
+      <view class="metric-item">
+        <text class="metric-value {{lastRttClass}}">{{lastRttDisplay}}</text>
+        <text class="metric-label">RTT (ms)</text>
+      </view>
+      <view class="metric-item">
+        <text class="metric-value">{{lastDelayDisplay}}</text>
+        <text class="metric-label">单向延迟 (ms)</text>
+      </view>
+      <view class="metric-item">
+        <text class="metric-value">{{lastOffsetDisplay}}</text>
+        <text class="metric-label">时钟偏差 (μs)</text>
+      </view>
+      <view class="metric-item">
+        <text class="metric-value text-green">{{accuracyDisplay}}</text>
+        <text class="metric-label">估计精度 (ms)</text>
+      </view>
+    </view>
+
+    <!-- 统计详情 -->
+    <view class="stats-section">
+      <text class="section-label">RTT 统计</text>
+      <view class="stats-grid">
+        <view class="stat-row">
+          <text class="label">最小:</text>
+          <text class="value mono">{{rttMinDisplay}} ms</text>
+        </view>
+        <view class="stat-row">
+          <text class="label">平均:</text>
+          <text class="value mono">{{rttMeanDisplay}} ms</text>
+        </view>
+        <view class="stat-row">
+          <text class="label">最大:</text>
+          <text class="value mono">{{rttMaxDisplay}} ms</text>
+        </view>
+        <view class="stat-row">
+          <text class="label">标准差:</text>
+          <text class="value mono">{{rttStdDisplay}} ms</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="stats-section">
+      <text class="section-label">同步统计</text>
+      <view class="stats-grid">
+        <view class="stat-row">
+          <text class="label">成功/总计:</text>
+          <text class="value mono">{{stats.successSyncs}} / {{stats.totalSyncs}}</text>
+        </view>
+        <view class="stat-row">
+          <text class="label">成功率:</text>
+          <text class="value mono">{{successRateDisplay}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 精度报告 -->
+    <view wx:if="{{accuracyReport}}" class="stats-section">
+      <text class="section-label">精度评估</text>
+      <view class="accuracy-summary">
+        <text class="accuracy-text">
+          基于 {{accuracyReport.sampleCount}} 次测量，估计同步精度：
+        </text>
+        <text class="accuracy-highlight">
+          最佳 ±{{accuracyReport.bestDisplay}}ms  /
+          典型 ±{{accuracyReport.typicalDisplay}}ms  /
+          最差 ±{{accuracyReport.worstDisplay}}ms
+        </text>
+        <text wx:if="{{accuracyReport.offsetDriftMs !== undefined}}" class="accuracy-text drift-info">
+          时钟漂移标准差: {{accuracyReport.offsetDriftDisplay}} ms
+        </text>
+      </view>
+    </view>
+  </view>
+
+  <!-- ==================== 同步日志 ==================== -->
+  <view class="card" wx:if="{{bleConnected}}">
+    <view class="card-header">
+      <text class="card-title">📋 同步日志</text>
+      <text class="card-action" bindtap="onClearLogs">清空</text>
+    </view>
+
+    <scroll-view scroll-y class="log-scroll" scroll-into-view="{{logScrollId}}">
+      <view wx:if="{{logs.length === 0}}" class="log-empty">
+        <text>暂无日志，开始同步后显示</text>
+      </view>
+      <view wx:for="{{logs}}" wx:key="id" id="log-{{item.id}}" class="log-item {{item.success ? '' : 'log-error'}}">
+        <text class="log-time">{{item.time}}</text>
+        <text wx:if="{{item.success}}" class="log-content">
+          RTT={{item.totalRttMs}}ms  延迟={{item.oneWayDelayMs}}ms  偏差={{item.offsetMs}}ms
+        </text>
+        <text wx:else class="log-content log-error-text">
+          {{item.error === 'timeout' ? '超时' : '失败'}}
+        </text>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 底部空白 -->
+  <view class="footer-space"></view>
+</view>
