@@ -1,4 +1,4 @@
-"""Bleak-based scanning, connection, GATT inspection, and request handling."""
+"""Windows 使用 Bleak 直接连接 68/69/70 Slave，并只负责 UTC 授时与授时状态接收。"""
 
 from __future__ import annotations
 
@@ -6,10 +6,9 @@ import asyncio
 from dataclasses import dataclass
 import logging
 import time
-from typing import Any, Callable
+from typing import Any
 
 from .config import AppConfig
-from .gateway_protocol import GatewayMessage, parse_gateway_message
 from .protocol import (
     ProtocolError,
     ProtocolLengthError,
@@ -80,30 +79,24 @@ class BleTimeClient:
         self.client: Any | None = None
         self._write_characteristic: Any | None = None
         self._status_characteristic: Any | None = None
-        self._control_characteristic: Any | None = None
-        self._gateway_status_characteristic: Any | None = None
         self._time_notify_started = False
-        self._gateway_notify_started = False
         self._request_lock = asyncio.Lock()
         self._write_lock = asyncio.Lock()
         self._pending: _PendingRequest | None = None
-        self.gateway_messages: asyncio.Queue[GatewayMessage] = asyncio.Queue()
         self.disconnected_event = asyncio.Event()
         self._closing = False
 
     @staticmethod
     def _name(device: Any, advertisement: Any) -> str:
-        return (getattr(advertisement, "local_name", None) or getattr(device, "name", None) or "")
+        return (
+            getattr(advertisement, "local_name", None)
+            or getattr(device, "name", None)
+            or ""
+        )
 
     @classmethod
     async def scan(cls, config: AppConfig, logger: logging.Logger) -> list[ScanResult]:
-        """Run the proven Bleak discover path, then match the final snapshots.
-
-        Bleak's Windows backend merges regular advertisements and scan responses in
-        its internal ``seen_devices`` collection. Avoid doing application work in a
-        synchronous per-advertisement callback, which can be costly in crowded RF
-        environments and differs from Bleak's documented convenience path.
-        """
+        """Run unfiltered active discovery, then match configured Slave names or service UUID."""
 
         _, scanner_class = _bleak_classes()
         logger.info(
@@ -119,26 +112,30 @@ class BleTimeClient:
         except Exception as exc:
             if type(exc).__name__ == "BleakBluetoothNotAvailableError":
                 raise BleAdapterUnavailableError(
-                    "Windows reports no usable Bluetooth adapter. Check that a BLE-capable adapter is "
-                    "installed and enabled and that its driver is loaded."
+                    "Windows reports no usable Bluetooth adapter. Check that a BLE-capable adapter is installed and enabled and that its driver is loaded."
                 ) from exc
             raise
+
         results = [
             cls._merge_scan_result(None, device, advertisement, config)
             for device, advertisement in discovered.values()
         ]
-        target = next((item for item in results if item.is_target), None)
-        if target is not None:
+        targets = [item for item in results if item.is_target]
+        if targets:
             logger.info(
-                "Target discovered: name=%r address=%s RSSI=%s services=%s",
-                target.name,
-                target.address,
-                target.rssi,
-                ",".join(target.service_uuids) or "-",
+                "Configured Slave candidate(s) discovered: %s",
+                ", ".join(
+                    f"{item.name}@{item.address}"
+                    for item in sorted(targets, key=lambda item: item.name)
+                ),
             )
         else:
-            logger.info("Active discovery completed without a target")
-        return sorted(results, key=lambda item: (not item.is_target, -(item.rssi or -999)))
+            logger.info("Active discovery completed without a configured Slave candidate")
+
+        return sorted(
+            results,
+            key=lambda item: (not item.is_target, -(item.rssi or -999)),
+        )
 
     @classmethod
     def _merge_scan_result(
@@ -164,8 +161,9 @@ class BleTimeClient:
         current_rssi = getattr(advertisement, "rssi", None)
         rssi = current_rssi if current_rssi is not None else (previous.rssi if previous else None)
         normalized_name = "" if name == "(unnamed)" else name.casefold()
+        expected_names = {item.casefold() for item in config.gateways.values()}
         is_target = (
-            config.device_name_prefix.casefold() in normalized_name
+            normalized_name in expected_names
             or config.service_uuid.lower() in service_uuids
         )
         return ScanResult(
@@ -182,8 +180,7 @@ class BleTimeClient:
         target = next((item for item in results if item.is_target), None)
         if target is None:
             raise TargetNotFoundError(
-                "No configured ESP32S3 gateway was found. Check the Gateway-68/69/70 "
-                "power, firmware names, and advertising state before retrying."
+                "No configured Slave was found. Check that BLE devices 68/69/70 are powered, advertising, and still advertising after the Master connection."
             )
         return target
 
@@ -207,14 +204,12 @@ class BleTimeClient:
             self.client.connect(), timeout=self.config.connect_timeout_seconds + 1.0
         )
         self._validate_gatt()
-        await self.client.start_notify(self._status_characteristic, self._notification_callback)
-        self._time_notify_started = True
         await self.client.start_notify(
-            self._gateway_status_characteristic,
-            self._gateway_notification_callback,
+            self._status_characteristic,
+            self._notification_callback,
         )
-        self._gateway_notify_started = True
-        self.logger.info("%sConnected; time and gateway status notifications enabled", prefix)
+        self._time_notify_started = True
+        self.logger.info("%sConnected; Time Status notification enabled", prefix)
 
     @property
     def is_connected(self) -> bool:
@@ -223,16 +218,15 @@ class BleTimeClient:
     def _validate_gatt(self) -> None:
         if self.client is None:
             raise RuntimeError("BLE client is not connected")
+
         services = self.client.services
         service = services.get_service(self.config.service_uuid)
         if service is None:
             raise RuntimeError(f"Required service not found: {self.config.service_uuid}")
+
         write_char = services.get_characteristic(self.config.write_characteristic_uuid)
         status_char = services.get_characteristic(self.config.status_characteristic_uuid)
-        control_char = services.get_characteristic(self.config.control_characteristic_uuid)
-        gateway_status_char = services.get_characteristic(
-            self.config.gateway_status_characteristic_uuid
-        )
+
         if write_char is None:
             raise RuntimeError(
                 f"Required write characteristic not found: {self.config.write_characteristic_uuid}"
@@ -241,69 +235,48 @@ class BleTimeClient:
             raise RuntimeError(
                 f"Required status characteristic not found: {self.config.status_characteristic_uuid}"
             )
-        if control_char is None:
-            raise RuntimeError(
-                f"Required control characteristic not found: {self.config.control_characteristic_uuid}"
-            )
-        if gateway_status_char is None:
-            raise RuntimeError(
-                "Required gateway status characteristic not found: "
-                f"{self.config.gateway_status_characteristic_uuid}"
-            )
+
         write_properties = {str(item).lower() for item in write_char.properties}
         status_properties = {str(item).lower() for item in status_char.properties}
-        control_properties = {str(item).lower() for item in control_char.properties}
-        gateway_status_properties = {
-            str(item).lower() for item in gateway_status_char.properties
-        }
-        if self.config.write_with_response and "write" not in write_properties:
-            raise RuntimeError("Time characteristic does not advertise write-with-response support")
-        if not ({"notify", "indicate"} & status_properties):
-            raise RuntimeError("Status characteristic does not advertise notify/indicate support")
-        if self.config.write_with_response and "write" not in control_properties:
-            raise RuntimeError("Control characteristic does not advertise write support")
-        if not ({"notify", "indicate"} & gateway_status_properties):
+
+        if self.config.write_with_response:
+            if "write" not in write_properties:
+                raise RuntimeError(
+                    "Time Sync characteristic does not advertise write-with-response support"
+                )
+        elif "write-without-response" not in write_properties:
             raise RuntimeError(
-                "Gateway status characteristic does not advertise notify/indicate support"
+                "Time Sync characteristic does not advertise write-without-response support"
             )
-        if "read" not in gateway_status_properties:
-            raise RuntimeError("Gateway status characteristic does not advertise read support")
+
+        if not ({"notify", "indicate"} & status_properties):
+            raise RuntimeError(
+                "Time Status characteristic does not advertise notify/indicate support"
+            )
+
         self._write_characteristic = write_char
         self._status_characteristic = status_char
-        self._control_characteristic = control_char
-        self._gateway_status_characteristic = gateway_status_char
 
     def _on_disconnected(self, _client: Any) -> None:
         self.disconnected_event.set()
         pending = self._pending
         if pending is not None and not pending.future.done():
-            pending.future.set_exception(ConnectionError("BLE disconnected while a request was pending"))
-        if not self._closing:
-            self.logger.warning("BLE connection was lost; a rescan/reconnect will be attempted")
-
-    def _gateway_notification_callback(self, _sender: Any, data: bytearray) -> None:
-        try:
-            message = parse_gateway_message(data)
-        except Exception:
-            self.logger.exception(
-                "[%s] Invalid gateway status notification: %r",
-                self.gateway_id or "?",
-                bytes(data),
+            pending.future.set_exception(
+                ConnectionError("BLE disconnected while a request was pending")
             )
-            return
-        self.logger.info(
-            "[%s] Gateway status: %s",
-            self.gateway_id or message.device_id or "?",
-            message.raw,
-        )
-        self.gateway_messages.put_nowait(message)
+        if not self._closing:
+            self.logger.warning(
+                "BLE connection was lost; a rescan/reconnect will be attempted"
+            )
 
     def _notification_callback(self, _sender: Any, data: bytearray) -> None:
         # T4 must be captured before parsing or logging work.
         t4_monotonic_ns = time.perf_counter_ns()
         pending = self._pending
         if pending is None:
-            self.logger.warning("Ignoring unsolicited status notification (%d bytes)", len(data))
+            self.logger.warning(
+                "Ignoring unsolicited Time Status notification (%d bytes)", len(data)
+            )
             return
         try:
             status = parse_status_response(data, source="Notify")
@@ -337,6 +310,7 @@ class BleTimeClient:
             future: asyncio.Future[tuple[TimeStatus, int, str]] = loop.create_future()
             self._pending = _PendingRequest(sent_phone_us, future)
             t1_monotonic_ns = time.perf_counter_ns()
+
             try:
                 async with self._write_lock:
                     await self.client.write_gatt_char(
@@ -354,8 +328,12 @@ class BleTimeClient:
                     asyncio.shield(future), timeout=self.config.notify_timeout_seconds
                 )
             except ProtocolLengthError as exc:
-                self.logger.error("%s; attempting a full status characteristic read", exc)
-                status, t4_monotonic_ns, source = await self._read_status_fallback(sent_phone_us)
+                self.logger.error(
+                    "%s; attempting a full Time Status characteristic read", exc
+                )
+                status, t4_monotonic_ns, source = await self._read_status_fallback(
+                    sent_phone_us
+                )
             except asyncio.TimeoutError as exc:
                 self._pending = None
                 future.cancel()
@@ -375,69 +353,19 @@ class BleTimeClient:
                 response_source=source,
             )
 
-    async def send_control(self, payload: bytes) -> None:
-        if not self.is_connected or self.client is None:
-            raise ConnectionError("BLE is not connected")
-        if self._control_characteristic is None:
-            raise RuntimeError("Control characteristic is unavailable")
-        async with self._write_lock:
-            await self.client.write_gatt_char(
-                self._control_characteristic,
-                payload,
-                response=self.config.write_with_response,
-            )
-
-    async def read_gateway_status(self) -> GatewayMessage:
-        if not self.is_connected or self.client is None:
-            raise ConnectionError("BLE is not connected")
-        if self._gateway_status_characteristic is None:
-            raise RuntimeError("Gateway status characteristic is unavailable")
-        properties = {
-            str(item).lower() for item in self._gateway_status_characteristic.properties
-        }
-        if "read" not in properties:
-            raise RuntimeError("Gateway status characteristic is not readable")
-        raw = await self.client.read_gatt_char(self._gateway_status_characteristic)
-        message = parse_gateway_message(raw)
-        self.logger.info(
-            "[%s] Gateway status read: %s",
-            self.gateway_id or message.device_id or "?",
-            message.raw,
-        )
-        return message
-
-    def drain_gateway_messages(self) -> None:
-        while True:
-            try:
-                self.gateway_messages.get_nowait()
-            except asyncio.QueueEmpty:
-                return
-
-    async def wait_for_gateway_message(
+    async def _read_status_fallback(
         self,
-        predicate: Callable[[GatewayMessage], bool],
-        timeout: float,
-    ) -> GatewayMessage:
-        deadline = asyncio.get_running_loop().time() + timeout
-        while True:
-            remaining = deadline - asyncio.get_running_loop().time()
-            if remaining <= 0:
-                raise TimeoutError("Timed out waiting for a matching gateway status")
-            message = await asyncio.wait_for(self.gateway_messages.get(), remaining)
-            if predicate(message):
-                return message
-            self.logger.info(
-                "[%s] Ignoring unrelated gateway message while waiting: %s",
-                self.gateway_id or "?",
-                message.raw,
-            )
-
-    async def _read_status_fallback(self, expected_phone_us: int) -> tuple[TimeStatus, int, str]:
+        expected_phone_us: int,
+    ) -> tuple[TimeStatus, int, str]:
         if self.client is None or self._status_characteristic is None:
             raise ConnectionError("Cannot read status because BLE is disconnected")
-        properties = {str(item).lower() for item in self._status_characteristic.properties}
+        properties = {
+            str(item).lower() for item in self._status_characteristic.properties
+        }
         if "read" not in properties:
-            raise ProtocolError("Status characteristic is not readable; truncated Notify was not parsed")
+            raise ProtocolError(
+                "Time Status characteristic is not readable; truncated Notify was not parsed"
+            )
         raw = await self.client.read_gatt_char(self._status_characteristic)
         t4_monotonic_ns = time.perf_counter_ns()
         status = parse_status_response(raw, source="Read fallback")
@@ -460,7 +388,10 @@ class BleTimeClient:
                         "handle": getattr(char, "handle", None),
                         "properties": list(char.properties),
                         "descriptors": [
-                            {"uuid": str(desc.uuid), "handle": getattr(desc, "handle", None)}
+                            {
+                                "uuid": str(desc.uuid),
+                                "handle": getattr(desc, "handle", None),
+                            }
                             for desc in char.descriptors
                         ],
                     }
@@ -480,29 +411,22 @@ class BleTimeClient:
         self._pending = None
         if pending is not None and not pending.future.done():
             pending.future.cancel()
+
         if self.client is not None and self.client.is_connected:
             if self._time_notify_started and self._status_characteristic is not None:
                 try:
                     await self.client.stop_notify(self._status_characteristic)
                 except Exception:
-                    self.logger.exception("Failed to stop status notifications cleanly")
-            if (
-                self._gateway_notify_started
-                and self._gateway_status_characteristic is not None
-            ):
-                try:
-                    await self.client.stop_notify(self._gateway_status_characteristic)
-                except Exception:
-                    self.logger.exception("Failed to stop gateway notifications cleanly")
+                    self.logger.exception(
+                        "Failed to stop Time Status notifications cleanly"
+                    )
             try:
                 await self.client.disconnect()
             except Exception:
                 self.logger.exception("Failed to disconnect BLE cleanly")
+
         self._time_notify_started = False
-        self._gateway_notify_started = False
         self.client = None
         self._write_characteristic = None
         self._status_characteristic = None
-        self._control_characteristic = None
-        self._gateway_status_characteristic = None
         self.disconnected_event.set()

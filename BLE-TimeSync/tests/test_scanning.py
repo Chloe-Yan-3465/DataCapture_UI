@@ -14,25 +14,39 @@ class ScanMatchingTests(unittest.TestCase):
         self.config = AppConfig.load(DEFAULT_CONFIG_PATH)
         self.device = SimpleNamespace(address="10:20:BA:41:B8:41", name=None)
 
-    def test_merges_name_and_services_across_advertisement_updates(self) -> None:
+    def test_accepts_exact_slave_name(self) -> None:
+        advertisement = SimpleNamespace(
+            local_name="68",
+            service_uuids=[],
+            rssi=-30,
+        )
+        result = BleTimeClient._merge_scan_result(
+            None, self.device, advertisement, self.config
+        )
+        self.assertEqual(result.name, "68")
+        self.assertTrue(result.is_target)
+
+    def test_accepts_service_uuid_before_scan_response_name_arrives(self) -> None:
         first_adv = SimpleNamespace(
             local_name=None,
             service_uuids=[self.config.service_uuid.upper()],
             rssi=-40,
         )
-        first = BleTimeClient._merge_scan_result(None, self.device, first_adv, self.config)
+        first = BleTimeClient._merge_scan_result(
+            None, self.device, first_adv, self.config
+        )
         self.assertEqual(first.name, "(unnamed)")
         self.assertTrue(first.is_target)
 
         scan_response = SimpleNamespace(
-            local_name="node-ESP32S3-TIMESYNC-lab",
+            local_name="69",
             service_uuids=[],
             rssi=-30,
         )
         merged = BleTimeClient._merge_scan_result(
             first, self.device, scan_response, self.config
         )
-        self.assertEqual(merged.name, "node-ESP32S3-TIMESYNC-lab")
+        self.assertEqual(merged.name, "69")
         self.assertIn(self.config.service_uuid, merged.service_uuids)
         self.assertEqual(merged.rssi, -30)
         self.assertTrue(merged.is_target)
@@ -48,11 +62,9 @@ class ScanMatchingTests(unittest.TestCase):
 class ScanFlowTests(unittest.IsolatedAsyncioTestCase):
     async def test_uses_unfiltered_active_discover_then_matches(self) -> None:
         config = AppConfig.load(DEFAULT_CONFIG_PATH)
-        device = SimpleNamespace(
-            address="10:20:BA:41:B8:41", name="ESP32S3-TimeSync"
-        )
+        device = SimpleNamespace(address="10:20:BA:41:B8:41", name="70")
         advertisement = SimpleNamespace(
-            local_name="ESP32S3-TimeSync",
+            local_name="70",
             service_uuids=[config.service_uuid],
             rssi=-48,
         )
@@ -79,7 +91,7 @@ class ScanFlowTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(len(results), 1)
         self.assertTrue(results[0].is_target)
-        self.assertEqual(results[0].address, "10:20:BA:41:B8:41")
+        self.assertEqual(results[0].name, "70")
 
 
 if __name__ == "__main__":

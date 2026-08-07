@@ -1,4 +1,4 @@
-"""Command-line entry point for the Windows BLE time-sync application."""
+"""Windows BLE 授时工程命令行入口；run 模式只维持 68/69/70 的连接与周期 UTC 授时。"""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from .time_sync import TimeSyncEngine
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Windows controller for three ESP32 BLE time-sync gateways"
+        description="Windows UTC time-sync client for BLE Slaves 68, 69, and 70"
     )
     parser.add_argument(
         "--config",
@@ -37,20 +37,20 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("scan", help="scan only; never connect or write time")
     subparsers.add_parser("inspect", help="inspect GATT and make one uncompensated probe")
-    subparsers.add_parser("once", help="calibrate, send one compensated update, and exit")
+    subparsers.add_parser("once", help="perform initial time sync, send one compensated update, and exit")
     run_parser = subparsers.add_parser(
         "run",
-        help="connect three gateways, synchronize continuously, and accept 1/0 control keys",
+        help="connect Slaves 68/69/70 and synchronize UTC continuously",
     )
     run_parser.add_argument(
         "--no-compensation",
         action="store_true",
-        help="calibrate but send subsequent updates without delay compensation",
+        help="measure initial delay but send subsequent updates without delay compensation",
     )
     run_parser.add_argument(
         "--control-stdin",
         action="store_true",
-        help="accept line-based 1/0/quit commands from stdin (for the local Web UI)",
+        help="accept line-based quit/exit commands from stdin for process management",
     )
     return parser
 
@@ -72,19 +72,20 @@ async def _scan(config: AppConfig, logger: logging.Logger) -> int:
                 f"  [{marker}] name={item.name!r} address={item.address} "
                 f"RSSI={item.rssi} services={services}"
             )
+
     found_names = {item.name.casefold() for item in results}
     missing = [
         name for name in config.gateways.values() if name.casefold() not in found_names
     ]
     if missing:
-        print(f"Missing configured gateway(s): {', '.join(missing)}")
+        print(f"Missing configured Slave(s): {', '.join(missing)}")
         if not any(name.casefold() in found_names for name in config.gateways.values()):
             print("Please:")
-            print("  1. Check that Gateway-68/69/70 are powered and advertising.")
-            print("  2. Check their BLE names and firmware identity settings.")
-            print("  3. Restart the missing gateway and scan again.")
+            print("  1. Check that Slaves 68/69/70 are powered and advertising.")
+            print("  2. Confirm the BLE names are exactly 68, 69, and 70.")
+            print("  3. Confirm each Slave keeps advertising after the Master connects.")
             return 2
-        print("Available gateways can still be used; missing gateways will be skipped.")
+        print("Available Slaves can connect now; missing Slaves will be retried in run mode.")
     return 0
 
 
@@ -93,10 +94,10 @@ async def _inspect(config: AppConfig, logger: logging.Logger) -> int:
     try:
         await client.connect()
         print(json.dumps(client.describe_gatt(), indent=2, ensure_ascii=False))
-        print("Required service and characteristic UUIDs: OK")
+        print("Required Time Sync and Time Status characteristics: OK")
         with SessionLog(config.log_directory) as session_log:
             engine = TimeSyncEngine(client, config, session_log, logger)
-            print("Sending one uncompensated probe to validate Notify response length...")
+            print("Sending one uncompensated UTC probe to validate Time Status Notify...")
             result = await engine.perform_sync(0.0)
             if not result["success"]:
                 raise RuntimeError(str(result["error"]))
@@ -140,26 +141,26 @@ async def _run(
                 except asyncio.CancelledError:
                     raise
                 except Exception:
-                    logger.exception("Gateway initialization failed")
+                    logger.exception("Slave time-sync initialization failed")
                     await manager.disconnect_all()
                     logger.info(
-                        "Retrying gateway initialization in %.1f seconds",
+                        "Retrying Slave time-sync initialization in %.1f seconds",
                         config.reconnect_delay_seconds,
                     )
                     await asyncio.sleep(config.reconnect_delay_seconds)
+
             if control_stdin:
-                await _stdin_control_loop(manager, logger)
+                await _stdin_lifecycle_loop(logger)
             else:
-                await _keyboard_control_loop(manager, logger)
+                await asyncio.Event().wait()
         finally:
             await manager.close()
 
+    return 0
 
-async def _stdin_control_loop(
-    manager: GatewayManager,
-    logger: logging.Logger,
-) -> int:
-    """Accept UI-friendly line commands without changing console-key behavior."""
+
+async def _stdin_lifecycle_loop(logger: logging.Logger) -> int:
+    """Accept process-lifecycle commands without handling capture START/STOP."""
 
     loop = asyncio.get_running_loop()
     commands: asyncio.Queue[str | None] = asyncio.Queue()
@@ -181,7 +182,7 @@ async def _stdin_control_loop(
         daemon=True,
     ).start()
     print(
-        "[CONTROL] stdin mode: send 1 to START, 0 to STOP, quit to exit.",
+        "[CONTROL] stdin mode: quit/exit stops BLE-TimeSync; START/STOP is handled by Master-Serial-Control.",
         flush=True,
     )
 
@@ -190,61 +191,18 @@ async def _stdin_control_loop(
         if command is None:
             logger.info("Control stdin closed; exiting")
             return 0
+
         normalized = command.casefold()
-        if normalized in {"1", "start"}:
-            await manager.start_all()
-        elif normalized in {"0", "stop"}:
-            await manager.stop_all()
-        elif normalized in {"q", "quit", "exit"}:
-            logger.info("UI requested BLE controller exit")
+        if normalized in {"q", "quit", "exit"}:
+            logger.info("Process manager requested BLE-TimeSync exit")
             return 0
+        if normalized in {"1", "start", "0", "stop"}:
+            logger.warning(
+                "Ignoring capture control command %r: BLE-TimeSync is time-sync only; use Master-Serial-Control",
+                command,
+            )
         elif normalized:
-            logger.warning("Ignoring unknown stdin control command: %s", command)
-
-
-async def _keyboard_control_loop(
-    manager: GatewayManager,
-    logger: logging.Logger,
-) -> int:
-    if sys.platform != "win32":
-        raise RuntimeError("Single-key gateway control is only supported on Windows")
-    import msvcrt
-
-    command_tasks: set[asyncio.Task[object]] = set()
-
-    def _task_done(task: asyncio.Task[object]) -> None:
-        command_tasks.discard(task)
-        if not task.cancelled():
-            exception = task.exception()
-            if exception is not None:
-                logger.error(
-                    "Keyboard control task failed",
-                    exc_info=(type(exception), exception, exception.__traceback__),
-                )
-
-    try:
-        while True:
-            if not msvcrt.kbhit():
-                await asyncio.sleep(0.05)
-                continue
-            key = msvcrt.getwch()
-            if key in {"\x00", "\xe0"}:
-                if msvcrt.kbhit():
-                    msvcrt.getwch()
-                continue
-            if key == "1":
-                task = asyncio.create_task(manager.start_all(), name="gateway-start")
-            elif key == "0":
-                task = asyncio.create_task(manager.stop_all(), name="gateway-stop")
-            else:
-                continue
-            command_tasks.add(task)
-            task.add_done_callback(_task_done)
-    finally:
-        for task in command_tasks:
-            task.cancel()
-        if command_tasks:
-            await asyncio.gather(*command_tasks, return_exceptions=True)
+            logger.warning("Ignoring unknown stdin command: %s", command)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -254,6 +212,7 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
         return 2
+
     logger = configure_logging(config.log_directory)
 
     if not _python_is_supported():

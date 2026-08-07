@@ -1,4 +1,4 @@
-"""Configuration loading and validation."""
+"""Windows BLE 授时工程配置加载与校验模块。"""
 
 from __future__ import annotations
 
@@ -15,13 +15,10 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "config.json"
 
 @dataclass(frozen=True, slots=True)
 class AppConfig:
-    device_name_prefix: str
     gateways: dict[str, str]
     service_uuid: str
     write_characteristic_uuid: str
     status_characteristic_uuid: str
-    control_characteristic_uuid: str
-    gateway_status_characteristic_uuid: str
     scan_timeout_seconds: float
     connect_timeout_seconds: float
     notify_timeout_seconds: float
@@ -30,7 +27,6 @@ class AppConfig:
     calibration_interval_ms: int
     sync_interval_seconds: float
     sync_stagger_ms: int
-    control_ack_timeout_seconds: float
     compensation_method: str
     write_with_response: bool
     log_directory: Path
@@ -43,13 +39,10 @@ class AppConfig:
             raw: dict[str, Any] = json.load(handle)
 
         required = {
-            "device_name_prefix",
             "gateways",
             "service_uuid",
             "write_characteristic_uuid",
             "status_characteristic_uuid",
-            "control_characteristic_uuid",
-            "gateway_status_characteristic_uuid",
             "scan_timeout_seconds",
             "connect_timeout_seconds",
             "notify_timeout_seconds",
@@ -58,7 +51,6 @@ class AppConfig:
             "calibration_interval_ms",
             "sync_interval_seconds",
             "sync_stagger_ms",
-            "control_ack_timeout_seconds",
             "compensation_method",
             "write_with_response",
             "log_directory",
@@ -71,8 +63,6 @@ class AppConfig:
             "service_uuid",
             "write_characteristic_uuid",
             "status_characteristic_uuid",
-            "control_characteristic_uuid",
-            "gateway_status_characteristic_uuid",
         ):
             raw[key] = str(UUID(str(raw[key])))
 
@@ -82,8 +72,8 @@ class AppConfig:
         gateways = {str(device_id): str(name) for device_id, name in gateways_raw.items()}
         if set(gateways) != {"68", "69", "70"}:
             raise ValueError("gateways must define exactly device IDs 68, 69, and 70")
-        if len(set(gateways.values())) != len(gateways):
-            raise ValueError("gateway device names must be unique")
+        if gateways != {"68": "68", "69": "69", "70": "70"}:
+            raise ValueError("BLE device names must be exactly 68, 69, and 70")
 
         method = str(raw["compensation_method"])
         if method not in {"net_rtt_median", "total_rtt_mean_half"}:
@@ -93,38 +83,46 @@ class AppConfig:
         if not isinstance(raw["write_with_response"], bool):
             raise ValueError("write_with_response must be a JSON boolean")
 
+        non_negative = (
+            "calibration_warmup_samples",
+            "sync_stagger_ms",
+        )
+        for key in non_negative:
+            if (
+                not isinstance(raw[key], int)
+                or isinstance(raw[key], bool)
+                or raw[key] < 0
+            ):
+                raise ValueError(f"{key} must be a non-negative integer")
+
         positive = (
             "scan_timeout_seconds",
             "connect_timeout_seconds",
             "notify_timeout_seconds",
-            "calibration_warmup_samples",
             "calibration_samples",
             "calibration_interval_ms",
             "sync_interval_seconds",
-            "control_ack_timeout_seconds",
         )
         for key in positive:
-            if not isinstance(raw[key], (int, float)) or isinstance(raw[key], bool) or raw[key] <= 0:
+            if (
+                not isinstance(raw[key], (int, float))
+                or isinstance(raw[key], bool)
+                or raw[key] <= 0
+            ):
                 raise ValueError(f"{key} must be a positive number")
-        if (
-            not isinstance(raw["sync_stagger_ms"], int)
-            or isinstance(raw["sync_stagger_ms"], bool)
-            or raw["sync_stagger_ms"] < 0
-        ):
-            raise ValueError("sync_stagger_ms must be a non-negative integer")
+
+        if not 200 <= int(raw["sync_stagger_ms"]) <= 500:
+            raise ValueError("sync_stagger_ms must be between 200 and 500 milliseconds")
 
         log_directory = Path(str(raw["log_directory"]))
         if not log_directory.is_absolute():
             log_directory = PROJECT_ROOT / log_directory
 
         return cls(
-            device_name_prefix=str(raw["device_name_prefix"]),
             gateways=gateways,
             service_uuid=raw["service_uuid"],
             write_characteristic_uuid=raw["write_characteristic_uuid"],
             status_characteristic_uuid=raw["status_characteristic_uuid"],
-            control_characteristic_uuid=raw["control_characteristic_uuid"],
-            gateway_status_characteristic_uuid=raw["gateway_status_characteristic_uuid"],
             scan_timeout_seconds=float(raw["scan_timeout_seconds"]),
             connect_timeout_seconds=float(raw["connect_timeout_seconds"]),
             notify_timeout_seconds=float(raw["notify_timeout_seconds"]),
@@ -133,7 +131,6 @@ class AppConfig:
             calibration_interval_ms=int(raw["calibration_interval_ms"]),
             sync_interval_seconds=float(raw["sync_interval_seconds"]),
             sync_stagger_ms=int(raw["sync_stagger_ms"]),
-            control_ack_timeout_seconds=float(raw["control_ack_timeout_seconds"]),
             compensation_method=method,
             write_with_response=raw["write_with_response"],
             log_directory=log_directory,

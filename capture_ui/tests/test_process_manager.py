@@ -158,17 +158,46 @@ class TrackerRoleBindingTests(unittest.TestCase):
         self.assertIn("绑定完成", coordinator.message)
 
 
+class PreflightTests(unittest.TestCase):
+    def test_preflight_includes_master_runtime_and_entry(self) -> None:
+        coordinator = CaptureCoordinator()
+        checks = {item["name"]: item for item in coordinator.preflight()["checks"]}
+
+        self.assertIn("Master Python 3.12 虚拟环境", checks)
+        self.assertIn("Master 串口入口", checks)
+        master_python_detail = checks["Master Python 3.12 虚拟环境"]["detail"].replace("\\", "/")
+        master_entry_detail = checks["Master 串口入口"]["detail"].replace("\\", "/")
+        self.assertTrue(
+            master_python_detail.endswith(
+                "Master-Serial-Control/.venv/Scripts/python.exe"
+            )
+        )
+        self.assertTrue(
+            master_entry_detail.endswith("Master-Serial-Control/app/main.py")
+        )
+
+
 class SplitBleAndCaptureLifecycleTests(unittest.TestCase):
     def test_ble_stays_alive_across_start_and_stop_capture(self) -> None:
         coordinator = CaptureCoordinator()
+        coordinator.master = FakeProjectProcess("master", "Master-Serial-Control")
         coordinator.ble = FakeProjectProcess("ble", "BLE-TimeSync")
         coordinator.vive = FakeProjectProcess("vive", "VIVE Tracker")
 
         with patch.object(coordinator, "_require_checks"):
             coordinator.start_ble()
             deadline = time.monotonic() + 3
+            while not coordinator.master.is_active and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue(coordinator.master.is_active)
+            coordinator._on_line(
+                "master", "[READY] Master serial connected; S68/S69/S70 CONNECTED"
+            )
+
+            deadline = time.monotonic() + 3
             while not coordinator.ble.is_active and time.monotonic() < deadline:
                 time.sleep(0.01)
+            self.assertTrue(coordinator.ble.is_active)
             coordinator._on_line("ble", "[READY] Online gateways: 68")
             wait_for_phase(coordinator, "ble_ready")
 
@@ -180,18 +209,23 @@ class SplitBleAndCaptureLifecycleTests(unittest.TestCase):
                 "vive", "Recording poses to: C:\\captures\\session"
             )
             wait_for_phase(coordinator, "recording")
-            self.assertIn("1", coordinator.ble.commands)
+            self.assertIn("1", coordinator.master.commands)
+            self.assertNotIn("1", coordinator.ble.commands)
 
             coordinator.stop_capture()
             wait_for_phase(coordinator, "ble_ready")
-            self.assertIn("0", coordinator.ble.commands)
+            self.assertIn("0", coordinator.master.commands)
+            self.assertNotIn("0", coordinator.ble.commands)
             self.assertIn("stop", coordinator.vive.commands)
+            self.assertTrue(coordinator.master.is_active)
             self.assertTrue(coordinator.ble.is_active)
             self.assertFalse(coordinator.vive.is_active)
 
             coordinator.stop_ble()
             wait_for_phase(coordinator, "idle")
+            self.assertIn("quit", coordinator.master.commands)
             self.assertIn("quit", coordinator.ble.commands)
+            self.assertFalse(coordinator.master.is_active)
             self.assertFalse(coordinator.ble.is_active)
 
 

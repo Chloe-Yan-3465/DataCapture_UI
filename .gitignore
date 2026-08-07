@@ -57,3 +57,5 @@ Desktop.ini
 *.tmp
 *.temp
 ~$*
+
+.tools/

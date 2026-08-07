@@ -1,4 +1,4 @@
-"""Console, diagnostic, CSV, and JSONL logging helpers."""
+"""BLE 授时工程的控制台、诊断、CSV 与 JSONL 日志工具。"""
 
 from __future__ import annotations
 

@@ -1,107 +1,347 @@
 # 联合数据采集 UI
 
-这是一个仅在本机运行的 Web 控制台，分别管理常驻 BLE 授时进程和每一轮联合采集：
+这是一个仅在本机运行的 Web 控制台，用于统一管理 v3 采集链路中的三个子系统：
 
-- `BLE-TimeSync`：扫描、连接并校准 BLE 网关，向在线网关发送 `START` / `STOP`。
-- `VIVE-Tracker_capture`：通过 OpenXR 采集 VIVE Tracker 位姿并保存 CSV/JSON。
+- `Master-Serial-Control`：通过 Master ESP32 的 USB 串口负责 `START / STOP / STATUS`。
+- `BLE-TimeSync`：Windows 直接连接 Slave `68 / 69 / 70`，只负责 UTC 授时。
+- `VIVE-Tracker_capture`：通过 OpenXR 采集 VIVE Tracker 位姿并保存 CSV / JSON。
 
-服务只监听 `127.0.0.1`，默认地址为 <http://127.0.0.1:8765>，不会对局域网开放。
+服务只监听 `127.0.0.1`，默认地址：
 
-## 启动前准备
+```text
+http://127.0.0.1:8765
+```
 
-1. 关闭会占用 ESP32 BLE 连接的手机小程序或浏览器蓝牙工具，开启并重启需要的 ESP32 网关。
-2. 确保 `BLE-TimeSync\.venv` 已按该项目 README 安装完成。
-3. 启动 Steam、SteamVR 和 VIVE Hub，确认 Tracker 均已连接并可以正常定位。
-4. Tracker 或角色发生变化时，需要重新生成 `VIVE-Tracker_capture\tracker_roles.json`。可以直接在 UI 中完成，方法见下文；也可以继续使用原命令：
+不会向局域网开放。
 
-   ```powershell
-   .\01_绑定Tracker角色.ps1
-   ```
+## 1. v3 通信架构
 
-页面顶部会显示 6 项静态启动检查。它能检查入口、Python、`uv` 和角色映射，但无法在不启动采集的情况下保证 BLE 设备在线或 OpenXR 定位正常；这两类运行状态会显示在对应终端中。
+```text
+                         USB Serial 115200 8N1
+Windows UI ─────────────────────────────────────→ Master ESP32
+    │                                                │
+    │                                                │ BLE START/TICK/STOP
+    │                                                ├────→ Slave 68
+    │                                                ├────→ Slave 69
+    │                                                └────→ Slave 70
+    │
+    ├── BLE UTC 授时 ───────────────────────────────→ Slave 68
+    ├── BLE UTC 授时 ───────────────────────────────→ Slave 69
+    └── BLE UTC 授时 ───────────────────────────────→ Slave 70
 
-## 启动 UI
+VIVE Tracker ── OpenXR ──→ Windows UI
+```
 
-在工作区根目录 `F:\ASC_vla\CCF-A\DataCapture_UI` 打开 PowerShell：
+职责固定分离：
+
+```text
+Windows → Master：USB 串口 START / STOP / STATUS
+Master  → Slave ：BLE START / 30 Hz TICK / STOP
+Windows → Slave ：BLE UTC Time Sync
+VIVE    → Windows：OpenXR Tracker 位姿
+```
+
+`BLE-TimeSync` 不负责采集 START / STOP，Windows 也不直接向 Slave 写 Pulse Control。
+
+## 2. 启动前准备
+
+### Master ESP32
+
+Master 通过 USB 串口连接 Windows，固定参数为：
+
+```text
+115200 8N1
+```
+
+串口配置位于：
+
+```text
+Master-Serial-Control\config\config.json
+```
+
+当前实机测试环境使用 `COM21`。如果电脑存在多个串口，建议明确配置 Master 端口，例如：
+
+```json
+{
+  "serial_port": "COM21"
+}
+```
+
+`AUTO` 只适用于 Windows 当前恰好可见一个串口的情况；多串口时程序会拒绝自动猜测设备。
+
+### BLE Slave
+
+三台 Slave 的 BLE 名称必须严格为：
+
+```text
+68
+69
+70
+```
+
+每台 Slave 同时允许两条 BLE Central 连接：
+
+```text
+Master  → Slave：控制链路
+Windows → Slave：授时链路
+```
+
+Master 建立第一条连接后，Slave 仍需继续广播，直到 Windows 建立第二条连接。
+
+### VIVE
+
+启动并确认：
+
+```text
+Steam
+SteamVR
+VIVE Hub
+```
+
+Tracker 需要正常连接、定位，并在 SteamVR 中完成角色分配。角色或设备变化后，需要重新生成：
+
+```text
+VIVE-Tracker_capture\tracker_roles.json
+```
+
+可以直接使用 UI 中的 **绑定 Tracker 角色**。
+
+## 3. UI 启动预检
+
+页面顶部当前检查 8 项：
+
+```text
+Windows 平台
+BLE Python 3.12 虚拟环境
+BLE 入口
+Master Python 3.12 虚拟环境
+Master 串口入口
+uv
+VIVE 采集入口
+Tracker 角色映射
+```
+
+这些属于静态环境检查。ESP32 是否在线、BLE 是否连接、OpenXR 是否真正定位成功，需要在程序运行后动态判断。
+
+## 4. 启动 UI
+
+在项目根目录打开 PowerShell：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\capture_ui\start_ui.ps1
 ```
 
-脚本会启动服务并自动打开浏览器。保持这个 PowerShell 窗口运行；关闭服务时在该窗口按 `Ctrl+C`。
-
-如需更换端口或不自动打开浏览器：
+也可以进入 `capture_ui` 后运行：
 
 ```powershell
-.\capture_ui\start_ui.ps1 -Port 8877
-.\capture_ui\start_ui.ps1 -NoBrowser
+powershell -ExecutionPolicy Bypass -File .\start_ui.ps1
 ```
 
-如果浏览器没有自动打开，手动访问 <http://127.0.0.1:8765>。
+默认打开：
 
-## 在 UI 中绑定 Tracker 角色
+```text
+http://127.0.0.1:8765
+```
 
-角色绑定已经集成到页面中，直接调用原项目的 `VIVE-Tracker_capture\01_绑定Tracker角色.ps1`：
+更换端口：
 
-1. 保持 SteamVR 运行，并确认所有 Tracker 已连接、可正常定位且已在 SteamVR 中分配角色。
-2. 点击 **绑定 Tracker 角色**。
-3. 绑定脚本会导出 SteamVR 当前显式分配的全部 Tracker 角色；OpenXR/OpenVR 检测过程和最终角色映射会实时显示在右侧 VIVE 终端中。
-4. 成功后页面显示“Tracker 角色绑定完成”，并自动刷新顶部预检状态。生成结果仍位于 `VIVE-Tracker_capture\tracker_roles.json`。
+```powershell
+.\start_ui.ps1 -Port 8877
+```
 
-绑定角色与正式采集不能同时运行。绑定过程中可以点击 **取消角色绑定**；重新绑定会更新原角色映射文件。
+不自动打开浏览器：
 
-## BLE 授时与每轮采集
+```powershell
+.\start_ui.ps1 -NoBrowser
+```
 
-### 1. 启动 BLE 总进程
+## 5. 启动 BLE 授时总进程
 
-点击 **启动 BLE 授时**。UI 启动 `BLE-TimeSync`，等待网关扫描、连接、校准和 `[READY]`。页面显示“BLE 持续授时中”后，该进程保持常驻并继续每 10 秒周期授时；此时还没有向网关发送原键盘事件 `1`，也没有启动 Tracker 采集。
+点击 **启动 BLE 授时** 后，UI 会并行启动：
 
-BLE 启动后，按钮会变为 **停止 BLE 授时**。采集中不能直接停止 BLE，必须先停止并保存当前采集。
+```text
+Master-Serial-Control
++
+BLE-TimeSync
+```
 
-### 2. 开始一轮采集
+两者互不等待对方先完全 READY。
 
-1. 根据需要设置 Tracker 采样率，默认 `120 Hz`。
+### Master-Serial-Control
+
+工作目录：
+
+```text
+Master-Serial-Control
+```
+
+实际入口：
+
+```powershell
+.\.venv\Scripts\python.exe -u -m app.main run --control-stdin
+```
+
+负责：
+
+```text
+打开 Master USB 串口
+主动请求 STATUS
+持续接收 Master 每约 5 秒的异步 STATUS
+判断 S68 / S69 / S70 控制链状态
+接收 UI 的内部 1 / 0 命令并转换为 START / STOP 串口协议
+```
+
+### BLE-TimeSync
+
+工作目录：
+
+```text
+BLE-TimeSync
+```
+
+实际入口：
+
+```powershell
+.\.venv\Scripts\python.exe -u -m app.main run --control-stdin
+```
+
+负责：
+
+```text
+扫描 68 / 69 / 70
+建立 Windows → Slave BLE 连接
+订阅 Time Status Notify
+首次校准和 UTC 授时
+每 30 秒周期授时
+缺失或断线 Slave 的后台重连
+```
+
+`--control-stdin` 在 BLE-TimeSync 中只用于 `quit/exit` 生命周期控制，不接收采集 START / STOP。
+
+## 6. READY 判定
+
+完整采集只有在下面两个条件同时满足时才进入 `ble_ready`：
+
+```text
+1. Master-Serial-Control READY
+   └─ S68 / S69 / S70 全部 CONNECTED
+
+2. BLE-TimeSync READY
+   └─ Windows 已连接 68 / 69 / 70，并完成三台首次授时
+```
+
+因此部分硬件在线时，已经在线的设备仍然可以正常连接和授时，但 UI 不会允许正式开始采集。
+
+例如只有 Slave69 时，正常状态是：
+
+```text
+Master：
+S68=DISCONNECTED
+S69=CONNECTED
+S70=DISCONNECTED
+
+BLE-TimeSync：
+[WAIT] Online gateways: 69
+[OFFLINE] Gateways: 68, 70
+
+UI 顶部：
+[68] ERROR
+[69] IDLE
+[70] ERROR
+```
+
+此时页面保持“BLE 启动中”属于正常现象，不代表 69 的授时失败。
+
+## 7. 网关状态含义
+
+| 状态 | 含义 |
+|---|---|
+| `IDLE` | Master 已连接该 Slave，目前未采集 |
+| `WAIT_START_ACK` | 已请求开始，等待 Master START 确认 |
+| `RUNNING` | Master 已确认 START，正在采集 |
+| `WAIT_STOP_ACK` | 已请求停止，等待 Master STOP 确认 |
+| `ERROR` | Slave 控制链未连接或通信异常 |
+| `OTA` | OTA 模式 |
+
+左侧 BLE-TimeSync 日志框同时显示 BLE-TimeSync 和 Master-Serial-Control 日志；Master 日志统一带 `[MASTER]` 前缀，不额外增加第三个终端。
+
+## 8. 开始一轮采集
+
+完整 READY 后：
+
+1. 设置 Tracker 采样率，默认 `120 Hz`。
 2. 点击 **开始**。
-3. UI 启动 VIVE OpenXR 采集，等待它完成初始化并创建本轮输出目录。
-4. Tracker 真正开始记录后，UI 向常驻 BLE 进程发送 `1`，完全对应 BLE 原来的单键 `1` 逻辑。
+3. UI 先启动 VIVE OpenXR Tracker 采集。
+4. Tracker 创建本轮输出目录并真正进入记录状态后，UI 向 Master-Serial-Control stdin 发送：
 
-### 3. 停止本轮采集
+   ```text
+   1
+   ```
 
-点击 **停止**：
+5. Master-Serial-Control 生成新的 `uint32 session_id`，通过 USB 串口发送：
 
-- UI 向 BLE 发送 `0`，完全对应原来的单键 `0` 逻辑，并等待网关 ACK/帧数输出。
-- UI 同时通知 Tracker 结束当前采样、刷新 CSV 并写入 `metadata.json`，效果等价于原脚本收到 `Ctrl+C` 后保存退出。
-- Tracker 退出后，BLE 总进程不会退出，仍继续周期授时。页面回到“BLE 持续授时中”，可以再次点击 **开始** 采下一轮。
+   ```text
+   START+<session_id>
+   ```
 
-### 4. 最后停止 BLE
+6. Master 确认三台 Slave 均已连接后，启动本机 GPIO2，并向三台 Slave 下发 START 和连续约 30 Hz TICK。
+7. UI 收到 `[START_OK]` 后才进入正式 `recording`。
 
-所有采集轮次完成后，点击 **停止 BLE 授时**。只有这一步会向 BLE 控制进程发送 `quit`、停止 Notify 并断开 BLE。
+如果任意 Slave 未连接，Master 会拒绝 START，UI 不应进入正式采集状态。
 
-不要直接关闭 UI 的 PowerShell 窗口来代替页面上的 **停止**。误按 `Ctrl+C` 时服务仍会尝试保存 Tracker、发送 BLE `0` 并退出，但页面操作能给两个项目更完整的收尾时间。
+## 9. 停止一轮采集
 
-## 页面说明
+点击 **停止** 后：
 
-- 顶部状态依次可能为：`准备就绪`、`BLE 启动中`、`BLE 持续授时中`、`Tracker 启动中`、`正在采集`、`正在停止采集`、`采集异常`。
-- 顶部“蓝牙网关”栏只显示当前已连接设备，例如 `[68] IDLE`；断线设备会从该栏移除，重连后自动恢复。
-- “绑定 Tracker 角色”调用原 `01_绑定Tracker角色.ps1`，角色读取与错误输出显示在右侧终端。
-- 左侧终端显示 BLE 扫描、连接、校准、周期同步、网关 ACK 和错误。
-- 右侧终端显示 OpenXR Runtime、Tracker 列表、采样帧计数、保存目录和错误。
-- Tracker 意外退出时，UI 会向 BLE 发送 `0`，但保留 BLE 周期授时进程；BLE 意外退出时，UI 会停止 Tracker 以保存已有数据。
-- “清空屏幕日志”只清除 UI 内存中的显示内容，不会删除项目日志或采集数据。
+```text
+UI → VIVE：stop
+UI → Master-Serial-Control：0
+Master-Serial-Control → Master：STOP+当前 session_id
+Master → Slave 68/69/70：STOP
+```
 
-蓝牙网关状态灯：
+Tracker 停止并保存数据。本轮结束后：
 
-| 灯色 | 状态 | 含义 |
-|---|---|---|
-| 蓝色 | `IDLE` | 空闲，未采集 |
-| 黄色 | `WAIT_START_ACK` / `WAIT_STOP_ACK` | 已向 Linux 发送命令，等待确认 |
-| 绿色 | `RUNNING` | Linux 已回复 START 成功，正在采集 |
-| 红色 | `ERROR` | Linux 报错或 ACK 超时 |
-| 紫色 | OTA | 正在 OTA 模式 |
+```text
+Master-Serial-Control 保持运行
+BLE-TimeSync 保持运行
+周期授时继续
+```
 
-## 数据位置
+因此可以继续开始下一轮采集。
 
-BLE 日志仍由原项目写入：
+## 10. 停止 BLE 授时
+
+所有采集结束后点击 **停止 BLE 授时**。
+
+UI 会依次停止：
+
+```text
+BLE-TimeSync
+Master-Serial-Control
+```
+
+采集中不能直接停止通信总进程，应先停止当前采集。
+
+## 11. Tracker 角色绑定
+
+点击 **绑定 Tracker 角色** 后，UI 调用：
+
+```powershell
+VIVE-Tracker_capture\01_绑定Tracker角色.ps1 -NonInteractive
+```
+
+成功后更新：
+
+```text
+VIVE-Tracker_capture\tracker_roles.json
+```
+
+角色绑定和正式采集不能同时运行。
+
+## 12. 日志与数据位置
+
+BLE-TimeSync 日志：
 
 ```text
 BLE-TimeSync\logs\latest.log
@@ -109,7 +349,7 @@ BLE-TimeSync\logs\timesync_YYYYMMDD_HHMMSS.csv
 BLE-TimeSync\logs\timesync_YYYYMMDD_HHMMSS.jsonl
 ```
 
-VIVE 每次采集仍写入：
+VIVE 每轮采集输出：
 
 ```text
 VIVE-Tracker_capture\vr_captures\vr_capture_YYYYMMDD_HHMMSS\
@@ -117,55 +357,49 @@ VIVE-Tracker_capture\vr_captures\vr_capture_YYYYMMDD_HHMMSS\
 └── metadata.json
 ```
 
-页面底部会显示本次 VIVE 输出目录。
+页面底部会显示当前 VIVE 输出目录。
 
-## 实际执行的入口
+## 13. 当前实机验证状态
 
-UI 使用原项目环境和入口，不复制采集实现：
+已使用 Master + Slave69 完成以下实机验证：
 
-```powershell
-# Tracker 角色绑定（UI 使用非交互模式，原手动用法保持不变）
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\01_绑定Tracker角色.ps1 -NonInteractive
-
-# 工作目录：BLE-TimeSync
-.\.venv\Scripts\python.exe -u -m app.main run --control-stdin
-
-# 工作目录：VIVE-Tracker_capture
-uv run --script .\collect_openxr_tracker_poses_and_triggers.py `
-  --role-map .\tracker_roles.json `
-  --output-root .\vr_captures `
-  --tracker-rate 120 `
-  --control-stdin
+```text
+Windows UI → Master-Serial-Control
+Master USB Serial 115200 8N1
+Master 周期 STATUS
+Master → Slave69 BLE 控制连接
+Windows → Slave69 BLE 授时连接
+Slave69 双 BLE 同时连接
+Time Status Notify
+首次 UTC 授时
+30 秒周期授时
+缺失 Slave 后台重试
+UI 实时显示 Master 状态
 ```
 
-`--control-stdin` 是为 UI 新增的可选桥接模式。BLE 原来的单键 `1/0` 用法和 VIVE 原来的 `Ctrl+C` 用法均保持不变。
+实测 Slave69：
 
-## 常见问题
-
-### 页面显示 BLE 一直准备中
-
-BLE 项目一次主动扫描最长约 30 秒，且没有可用网关时会继续重试。检查 ESP32 是否供电并广播、手机是否占用连接，以及终端里的在线/离线设备信息。BLE 进程已经创建后，可以点击 **停止 BLE 授时** 取消启动。
-
-### VIVE 初始化后立即异常退出
-
-通常需要检查 SteamVR 是否运行、是否为当前 OpenXR Runtime、Tracker 是否正常定位，以及 `tracker_roles.json` 是否与当前设备一致。具体异常会保留在右侧终端。
-
-### `uv` 首次启动较慢
-
-VIVE 脚本通过 PEP 723 声明 `pyopenxr==1.1.5301`。`uv` 第一次运行可能需要准备并缓存 Python/依赖，以后会直接复用缓存。
-
-### 端口被占用
-
-换一个端口启动，例如：
-
-```powershell
-.\capture_ui\start_ui.ps1 -Port 8877
+```text
+BLE_CONNECTIONS=2
+SYNC=YES
 ```
 
-## 开发校验
+实测 Master：
 
-UI 本身只使用 Python 标准库，不需要额外安装 Web 框架。运行测试：
+```text
+S68=DISCONNECTED
+S69=CONNECTED
+S70=DISCONNECTED
+STATE=IDLE
+SESSION=0
+PULSES=0
+```
+
+当前没有 Slave68 / Slave70 硬件，因此三 Slave 同步 START / TICK / STOP 尚未完成最终实机验收。
+
+## 14. 开发校验
+
+UI：
 
 ```powershell
 cd .\capture_ui
@@ -173,4 +407,18 @@ cd .\capture_ui
 ..\BLE-TimeSync\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-测试覆盖日志增量读取、独立子进程的 stdout/stdin 控制、`BLE 启动 → BLE 1 + Tracker 开始 → BLE 0 + Tracker 停止 → BLE 保持运行 → BLE quit` 的拆分生命周期，以及实际绑定随机本地端口后访问首页、状态接口和启动预检接口。硬件采集仍需在 ESP32、SteamVR 和 Tracker 均在线时进行现场验证。
+BLE-TimeSync：
+
+```powershell
+cd ..\BLE-TimeSync
+.\.venv\Scripts\python.exe -m compileall -q app tests
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+Master-Serial-Control：
+
+```powershell
+cd ..\Master-Serial-Control
+.\.venv\Scripts\python.exe -m compileall -q app tests
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```

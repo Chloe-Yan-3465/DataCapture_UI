@@ -1,4 +1,4 @@
-"""Calibration and time synchronization calculations."""
+"""Windows BLE 授时过程中的延迟测量、补偿计算与日志记录模块。"""
 
 from __future__ import annotations
 

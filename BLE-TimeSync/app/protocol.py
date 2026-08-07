@@ -1,4 +1,4 @@
-"""Binary protocol shared by Windows and the ESP32 time-sync firmware."""
+"""Windows 与 Slave 共用的 UTC 授时二进制协议编解码模块。"""
 
 from __future__ import annotations
 

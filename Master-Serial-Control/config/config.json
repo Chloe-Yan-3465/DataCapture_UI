@@ -1,0 +1,9 @@
+{
+  "serial_port": "AUTO",
+  "read_timeout_seconds": 0.2,
+  "write_timeout_seconds": 2.0,
+  "command_timeout_seconds": 3.0,
+  "status_timeout_seconds": 3.0,
+  "max_line_bytes": 4096,
+  "log_directory": "logs"
+}
