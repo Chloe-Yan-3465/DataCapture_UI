@@ -1,5 +1,7 @@
 # Codex 工作上下文
 
+> 2026-08-08 更新：本文以下内容是旧 `ESP32S3-Gateway-68/69/70` BLE 方案的历史记录。当前入口已经迁移为 Windows 通过 USB 串口连接单一 `Mode2Coordinator`；现行说明与协议以项目根目录 `README.md` 和 `docs/windows_mode2_coordinator_protocol.md` 为准。
+
 最后更新：2026-07-21（Asia/Shanghai）
 
 ## 项目目标

@@ -43,9 +43,16 @@ global.fetch = async (url) => ({
       message: "准备就绪",
       error: null,
       vive_output_dir: null,
-      gateways: [
-        { device_id: "68", state: "IDLE", updated_at: "2026-08-06T12:00:00+08:00" },
-      ],
+      mode2: {
+        name: "Mode2Coordinator",
+        serial: "COM14@115200",
+        time_sync_state: "SYNCED",
+        control_state: "IDLE",
+        utc_map_state: "LOCKED",
+        nodes: [
+          { node_id: "1", connected: true, state: "IDLE", details: "session=0", updated_at: "2026-08-08T12:00:00+08:00" },
+        ],
+      },
       controls: {
         can_start_ble: true,
         can_stop_ble: false,
@@ -59,7 +66,8 @@ global.fetch = async (url) => ({
         vive: { status: "stopped", pid: null },
       },
       logs: {
-        ble: { items: [], last_seq: 0 },
+        ble_timesync: { items: [], last_seq: 0 },
+        ble_control: { items: [], last_seq: 0 },
         vive: { items: [], last_seq: 0 },
       },
     };
@@ -76,9 +84,12 @@ setTimeout(() => {
   if (!elements.has("bind-button")) {
     throw new Error("bind-button control was not initialized");
   }
-  const gatewayList = elements.get("gateway-list");
-  if (!gatewayList || gatewayList.children.length !== 1) {
-    throw new Error("connected gateway indicator was not rendered");
+  const nodeList = elements.get("node-list");
+  if (!nodeList || nodeList.children.length !== 1) {
+    throw new Error("Mode2 node indicator was not rendered");
+  }
+  if (elements.get("control-chip").textContent !== "控制 IDLE") {
+    throw new Error("Mode2 control state was not rendered");
   }
   process.stdout.write("frontend runtime smoke: OK\n");
 }, 20);

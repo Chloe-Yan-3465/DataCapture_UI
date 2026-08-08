@@ -6,9 +6,9 @@ const phaseLabels = {
   ble_ready: "BLE 持续授时中",
   stopping_ble: "BLE 停止中",
   starting_tracker: "Tracker 启动中",
-  recording: "正在采集",
-  stopping_capture: "正在停止采集",
-  error: "采集异常",
+  recording: "正在录制",
+  stopping_capture: "正在停止录制",
+  error: "录制异常",
 };
 
 const processLabels = {
@@ -19,7 +19,7 @@ const processLabels = {
   error: "异常退出",
 };
 
-let lastSeq = { ble: 0, vive: 0 };
+let lastSeq = { ble_timesync: 0, ble_control: 0, vive: 0 };
 let pollBusy = false;
 
 const byId = (id) => document.getElementById(id);
@@ -68,31 +68,46 @@ function renderProcess(key, process) {
   pill.className = `pill ${process.status === "running" ? "running" : process.status === "error" ? "error" : "stopped"}`;
 }
 
-function gatewayStateClass(state) {
-  if (state === "IDLE") return "idle";
-  if (["WAIT_START_ACK", "WAIT_STOP_ACK"].includes(state)) return "waiting";
+function mode2StateClass(state) {
+  if (["IDLE", "SYNCED", "LOCKED"].includes(state)) return "idle";
+  if (["CONNECTING", "SYNCING", "RETRYING", "STARTING", "STOPPING"].includes(state)) return "waiting";
   if (state === "RUNNING") return "running";
-  if (state === "ERROR") return "error";
-  if (state.includes("OTA")) return "ota";
+  if (["ERROR", "FAULT"].includes(state)) return "error";
   return "unknown";
 }
 
-function renderGateways(gateways) {
-  const list = byId("gateway-list");
-  if (!gateways.length) {
+function renderMode2(mode2 = {}) {
+  const name = mode2.name || "Mode2Coordinator";
+  const serial = mode2.serial || "未连接";
+  byId("coordinator-name").textContent = `${name} · ${serial}`;
+  const summary = [
+    ["timesync-chip", `授时 ${mode2.time_sync_state || "STOPPED"}`, mode2.time_sync_state],
+    ["control-chip", `控制 ${mode2.control_state || "OFFLINE"}`, mode2.control_state],
+    ["utc-chip", `UTC ${mode2.utc_map_state || "UNKNOWN"}`, mode2.utc_map_state],
+  ];
+  for (const [id, label, state] of summary) {
+    const chip = byId(id);
+    chip.textContent = label;
+    chip.className = `mode2-chip ${mode2StateClass(state || "UNKNOWN")}`;
+  }
+
+  const nodes = mode2.nodes || [];
+  const list = byId("node-list");
+  if (!nodes.length) {
     const empty = document.createElement("span");
-    empty.className = "gateway-empty";
-    empty.textContent = "暂无已连接设备";
+    empty.className = "node-empty";
+    empty.textContent = "尚未收到 wearable 节点状态";
     list.replaceChildren(empty);
     return;
   }
-  list.replaceChildren(...gateways.map((gateway) => {
+  list.replaceChildren(...nodes.map((node) => {
     const chip = document.createElement("span");
-    chip.className = "gateway-chip";
-    chip.title = `网关 ${gateway.device_id} · ${gateway.state} · 更新于 ${gateway.updated_at}`;
+    const visualState = node.connected ? node.state : "OFFLINE";
+    chip.className = "node-chip";
+    chip.title = `Node ${node.node_id} · ${node.connected ? "已连接" : "未连接"} · ${node.state} · ${node.details || "无详情"} · 更新于 ${node.updated_at}`;
     const dot = document.createElement("i");
-    dot.className = `gateway-dot ${gatewayStateClass(gateway.state)}`;
-    chip.append(dot, document.createTextNode(`[${gateway.device_id}] ${gateway.state}`));
+    dot.className = `mode2-dot ${mode2StateClass(visualState)}`;
+    chip.append(dot, document.createTextNode(`Node ${node.node_id} · ${node.connected ? node.state : "OFFLINE"}`));
     return chip;
   }));
 }
@@ -110,7 +125,7 @@ function renderState(state) {
   dot.className = `status-dot ${dotPhase}`;
   const controls = state.controls;
   const bleRunning = Boolean(state.processes.ble.pid);
-  bleButton.textContent = bleRunning ? "停止 BLE 授时" : "启动 BLE 授时";
+  bleButton.textContent = bleRunning ? "停止常驻授时" : "启动常驻授时";
   bleButton.disabled = bleRunning ? !controls.can_stop_ble : !controls.can_start_ble;
   bindButton.textContent = controls.can_cancel_binding ? "取消角色绑定" : "绑定 Tracker 角色";
   bindButton.disabled = !(controls.can_bind_trackers || controls.can_cancel_binding);
@@ -121,10 +136,12 @@ function renderState(state) {
   else if (!notice.dataset.manual) showNotice("");
   renderProcess("ble", state.processes.ble);
   renderProcess("vive", state.processes.vive);
-  renderGateways(state.gateways || []);
-  appendLogs("ble", state.logs.ble.items);
+  renderMode2(state.mode2);
+  appendLogs("ble-timesync", state.logs.ble_timesync.items);
+  appendLogs("ble-control", state.logs.ble_control.items);
   appendLogs("vive", state.logs.vive.items);
-  lastSeq.ble = state.logs.ble.last_seq;
+  lastSeq.ble_timesync = state.logs.ble_timesync.last_seq;
+  lastSeq.ble_control = state.logs.ble_control.last_seq;
   lastSeq.vive = state.logs.vive.last_seq;
   byId("output-path").textContent = state.vive_output_dir
     ? `VIVE 输出目录：${state.vive_output_dir}`
@@ -137,7 +154,7 @@ async function pollState() {
   if (pollBusy) return;
   pollBusy = true;
   try {
-    const state = await request(`/api/state?after_ble=${lastSeq.ble}&after_vive=${lastSeq.vive}`);
+    const state = await request(`/api/state?after_ble_timesync=${lastSeq.ble_timesync}&after_ble_control=${lastSeq.ble_control}&after_vive=${lastSeq.vive}`);
     try {
       renderState(state);
     } catch (error) {
@@ -227,9 +244,10 @@ stopButton.addEventListener("click", async () => {
 byId("clear-button").addEventListener("click", async () => {
   try {
     await request("/api/clear-logs", { method: "POST", body: "{}" });
-    byId("ble-log").replaceChildren();
+    byId("ble-timesync-log").replaceChildren();
+    byId("ble-control-log").replaceChildren();
     byId("vive-log").replaceChildren();
-    lastSeq = { ble: 0, vive: 0 };
+    lastSeq = { ble_timesync: 0, ble_control: 0, vive: 0 };
   } catch (error) {
     showNotice(error.message);
   }

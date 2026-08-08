@@ -5,6 +5,8 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
+raise unittest.SkipTest("legacy BLE scanner is not used by Mode2 coordinator")
+
 from app.ble_client import BleTimeClient
 from app.config import AppConfig, DEFAULT_CONFIG_PATH
 

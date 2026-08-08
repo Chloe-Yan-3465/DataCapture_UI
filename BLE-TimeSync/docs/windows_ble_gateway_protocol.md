@@ -1,4 +1,6 @@
-# Windows 上位机—ESP32 网关 BLE 通信协议
+# Windows 上位机—ESP32 网关 BLE 通信协议（旧版，已停用）
+
+> 本文仅保留作 `ESP32S3-Gateway-68/69/70` 历史协议参考。当前 Mode2 中控方案请使用 `windows_mode2_coordinator_protocol.md`；不要把本文的设备名或 `12345678-...` UUID 配进当前程序。
 
 ## 1. 协议范围
 
