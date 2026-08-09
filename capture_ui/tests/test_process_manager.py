@@ -169,7 +169,9 @@ class SplitBleAndCaptureLifecycleTests(unittest.TestCase):
             deadline = time.monotonic() + 3
             while not coordinator.ble.is_active and time.monotonic() < deadline:
                 time.sleep(0.01)
-            coordinator._on_line("ble", "[READY] Online gateways: 68")
+            coordinator._on_line(
+                "ble", "[READY] Mode2Coordinator via COM14@115200"
+            )
             wait_for_phase(coordinator, "ble_ready")
 
             coordinator.start_capture(120)
@@ -179,10 +181,23 @@ class SplitBleAndCaptureLifecycleTests(unittest.TestCase):
             coordinator._on_line(
                 "vive", "Recording poses to: C:\\captures\\session"
             )
+            deadline = time.monotonic() + 3
+            while "1" not in coordinator.ble.commands and time.monotonic() < deadline:
+                time.sleep(0.01)
+            coordinator._on_line(
+                "ble",
+                "[START] All wearable nodes armed; synchronized capture scheduled.",
+            )
             wait_for_phase(coordinator, "recording")
             self.assertIn("1", coordinator.ble.commands)
 
             coordinator.stop_capture()
+            deadline = time.monotonic() + 3
+            while "0" not in coordinator.ble.commands and time.monotonic() < deadline:
+                time.sleep(0.01)
+            coordinator._on_line(
+                "ble", "[STOP] STOP scheduled at coordinator=123456 session=7"
+            )
             wait_for_phase(coordinator, "ble_ready")
             self.assertIn("0", coordinator.ble.commands)
             self.assertIn("stop", coordinator.vive.commands)
@@ -195,37 +210,77 @@ class SplitBleAndCaptureLifecycleTests(unittest.TestCase):
             self.assertFalse(coordinator.ble.is_active)
 
 
-class GatewayStateIndicatorTests(unittest.TestCase):
-    def test_gateway_connection_and_state_lines_drive_indicator_snapshot(self) -> None:
+class Mode2StateAndLogTests(unittest.TestCase):
+    def test_mode2_lines_drive_status_and_separate_log_streams(self) -> None:
         coordinator = CaptureCoordinator()
         coordinator._on_line(
             "ble",
-            "[68] Gateway status: GW+DEVICE=68+STATE=IDLE+SESSION=0+SYNC=YES+END",
+            "2026-08-08 INFO mode2_timesync: ESP32> utc_map=LOCKED",
         )
-        coordinator._on_line("ble", "[READY] Online gateways: 68, 69")
-
-        states = {
-            item["device_id"]: item["state"] for item in coordinator.state()["gateways"]
-        }
-        self.assertEqual(states, {"68": "IDLE", "69": "IDLE"})
-
-        coordinator._set_connected_gateway_state("WAIT_START_ACK")
-        coordinator._on_line("ble", "[68] ACK START OK")
-        coordinator._on_line("ble", "[69] FAILED: Linux ACK timeout")
-        states = {
-            item["device_id"]: item["state"] for item in coordinator.state()["gateways"]
-        }
-        self.assertEqual(states, {"68": "RUNNING", "69": "ERROR"})
-
         coordinator._on_line(
             "ble",
-            "[68] Gateway status: GW+DEVICE=68+STATE=OTA+SESSION=0+SYNC=YES+END",
+            "2026-08-08 INFO mode2_timesync: ESP32> "
+            "node=1 connected=1 state=IDLE session=0 error=0x00000000",
         )
-        coordinator._on_line("ble", "[OFFLINE] Gateways: 69")
+        coordinator._on_line(
+            "ble", "[READY] Mode2Coordinator via COM14@115200"
+        )
+        coordinator._on_line(
+            "ble",
+            "2026-08-08 INFO mode2_timesync: Time sync accepted: seq=12 nodes=3",
+        )
+        coordinator._on_line(
+            "ble",
+            "[START] All wearable nodes armed; synchronized capture scheduled.",
+        )
+
+        state = coordinator.state()
+        self.assertEqual(state["mode2"]["serial"], "COM14@115200")
+        self.assertEqual(state["mode2"]["utc_map_state"], "LOCKED")
+        self.assertEqual(state["mode2"]["control_state"], "RUNNING")
         self.assertEqual(
-            [(item["device_id"], item["state"]) for item in coordinator.state()["gateways"]],
-            [("68", "OTA")],
+            state["mode2"]["nodes"],
+            [
+                {
+                    "node_id": "1",
+                    "connected": True,
+                    "state": "IDLE",
+                    "details": "session=0 error=0x00000000",
+                    "updated_at": state["mode2"]["nodes"][0]["updated_at"],
+                }
+            ],
         )
+        timesync_text = [
+            item["text"] for item in state["logs"]["ble_timesync"]["items"]
+        ]
+        control_text = [
+            item["text"] for item in state["logs"]["ble_control"]["items"]
+        ]
+        self.assertTrue(any("Time sync accepted" in line for line in timesync_text))
+        self.assertTrue(any("All wearable nodes armed" in line for line in control_text))
+        self.assertFalse(any("All wearable nodes armed" in line for line in timesync_text))
+
+    def test_start_failure_does_not_enter_recording(self) -> None:
+        coordinator = CaptureCoordinator()
+        coordinator.ble = FakeProjectProcess("ble", "BLE-TimeSync")
+        coordinator.vive = FakeProjectProcess("vive", "VIVE Tracker")
+        coordinator.ble.active = True
+        coordinator._on_line("ble", "[READY] Mode2Coordinator via COM14@115200")
+        coordinator.phase = "ble_ready"
+
+        with patch.object(coordinator, "_require_checks"):
+            coordinator.start_capture(120)
+        deadline = time.monotonic() + 3
+        while not coordinator.vive.is_active and time.monotonic() < deadline:
+            time.sleep(0.01)
+        coordinator._on_line("vive", "Recording poses to: C:\\captures\\failed")
+        deadline = time.monotonic() + 3
+        while "1" not in coordinator.ble.commands and time.monotonic() < deadline:
+            time.sleep(0.01)
+        coordinator._on_line("ble", "[START FAILED] START rejected: node 2 offline")
+        wait_for_phase(coordinator, "ble_ready")
+        self.assertFalse(coordinator.vive.is_active)
+        self.assertIn("START 未成功", coordinator.message)
 
 if __name__ == "__main__":
     unittest.main()

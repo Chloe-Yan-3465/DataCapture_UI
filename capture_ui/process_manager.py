@@ -20,8 +20,29 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 BLE_DIR = ROOT_DIR / "BLE-TimeSync"
 VIVE_DIR = ROOT_DIR / "VIVE-Tracker_capture"
 
-GATEWAY_STATE_PATTERN = re.compile(
-    r"GW\+DEVICE=(?P<device_id>\d+)\+STATE=(?P<state>[A-Z0-9_]+)"
+MODE2_NODE_PATTERN = re.compile(
+    r"node=(?P<node_id>\d+)\s+connected=(?P<connected>[01])\s+"
+    r"state=(?P<state>[A-Z0-9_]+)(?P<details>.*)",
+    re.IGNORECASE,
+)
+MODE2_READY_PATTERN = re.compile(
+    r"\[READY\]\s+(?P<name>.+?)\s+via\s+(?P<serial>\S+)", re.IGNORECASE
+)
+
+BLE_CONTROL_TOKENS = (
+    "[CONTROL]",
+    "[START]",
+    "[START FAILED]",
+    "[STOP]",
+    "START REJECTED",
+    "START ABORTED",
+    "START IGNORED",
+    "START DID NOT RECEIVE",
+    "STOP DID NOT RECEIVE",
+    "START SCHEDULED",
+    "STOP SCHEDULED",
+    "ARMED ON ALL NODES",
+    "NO ACTIVE SESSION",
 )
 
 
@@ -255,6 +276,8 @@ class CaptureCoordinator:
         self._lock = threading.RLock()
         self._ble_ready = threading.Event()
         self._vive_ready = threading.Event()
+        self._ble_start_result = threading.Event()
+        self._ble_stop_result = threading.Event()
         self._ble_stop_requested = threading.Event()
         self._capture_stop_requested = threading.Event()
         self._binding_cancel_requested = threading.Event()
@@ -265,7 +288,16 @@ class CaptureCoordinator:
         self.capture_started_at: str | None = None
         self.last_stopped_at: str | None = None
         self.vive_output_dir: str | None = None
-        self._gateway_states: dict[str, dict[str, str]] = {}
+        self.ble_timesync_logs = LogStore()
+        self.ble_control_logs = LogStore()
+        self._ble_start_ok: bool | None = None
+        self._ble_stop_ok: bool | None = None
+        self._ble_control_state = "OFFLINE"
+        self._ble_time_sync_state = "STOPPED"
+        self._coordinator_name = "Mode2Coordinator"
+        self._coordinator_serial = "未连接"
+        self._utc_map_state = "UNKNOWN"
+        self._node_states: dict[str, dict[str, object]] = {}
         self.ble = ProjectProcess("ble", "BLE-TimeSync", self._on_line, self._on_exit)
         self.vive = ProjectProcess(
             "vive", "VIVE Tracker", self._on_line, self._on_exit
@@ -280,12 +312,12 @@ class CaptureCoordinator:
                 "detail": sys.platform,
             },
             {
-                "name": "BLE Python 3.12 虚拟环境",
+                "name": "授时 Python 运行环境",
                 "ok": (BLE_DIR / ".venv" / "Scripts" / "python.exe").is_file(),
                 "detail": str(BLE_DIR / ".venv" / "Scripts" / "python.exe"),
             },
             {
-                "name": "BLE 入口",
+                "name": "Mode2 授时入口",
                 "ok": (BLE_DIR / "app" / "main.py").is_file(),
                 "detail": str(BLE_DIR / "app" / "main.py"),
             },
@@ -325,7 +357,7 @@ class CaptureCoordinator:
 
     # BLE service lifecycle -------------------------------------------------
     def start_ble(self) -> None:
-        self._require_checks({"Windows 平台", "BLE Python 3.12 虚拟环境", "BLE 入口"})
+        self._require_checks({"Windows 平台", "授时 Python 运行环境", "Mode2 授时入口"})
         with self._lock:
             if self.phase not in {"idle", "error"}:
                 raise RuntimeError("当前状态不能启动 BLE 授时")
@@ -333,10 +365,21 @@ class CaptureCoordinator:
                 raise RuntimeError("仍有项目进程没有退出")
             self._ble_ready.clear()
             self._ble_stop_requested.clear()
-            self._gateway_states.clear()
+            self._ble_start_result.clear()
+            self._ble_stop_result.clear()
+            self._ble_start_ok = None
+            self._ble_stop_ok = None
+            self._ble_control_state = "CONNECTING"
+            self._ble_time_sync_state = "SYNCING"
+            self._coordinator_serial = "连接中"
+            self._utc_map_state = "UNKNOWN"
+            self._node_states.clear()
             self.error = None
             self.phase = "starting_ble"
-            self.message = "正在扫描、连接并校准 BLE 网关…"
+            self.message = "正在连接 Mode2 中控并等待首次授时成功…"
+        self.ble_timesync_logs.append(
+            "[UI] ===== Start persistent Mode2 time sync =====", "system"
+        )
         self.ble.logs.append("[UI] ===== Start BLE time sync service =====", "system")
         threading.Thread(
             target=self._start_ble_worker,
@@ -362,7 +405,7 @@ class CaptureCoordinator:
                 self._ble_ready, self.ble, self._ble_stop_requested
             ):
                 return
-            self._set_phase("ble_ready", "BLE 已就绪并持续授时，可以开始采集")
+            self._set_phase("ble_ready", "Mode2 已就绪并持续授时，可以开始录制")
         except Exception as exc:
             if not self._ble_stop_requested.is_set():
                 self._set_phase("error", f"BLE 启动失败：{exc}", str(exc))
@@ -377,12 +420,14 @@ class CaptureCoordinator:
                 return
             if not self.ble.is_active:
                 self._ble_ready.clear()
+                self._ble_control_state = "OFFLINE"
+                self._ble_time_sync_state = "STOPPED"
                 self.phase = "idle"
-                self.message = "BLE 未运行"
+                self.message = "Mode2 授时未运行"
                 return
             self._ble_stop_requested.set()
             self.phase = "stopping_ble"
-            self.message = "正在停止 BLE 授时总进程…"
+            self.message = "正在停止 Mode2 常驻授时进程…"
             self.error = None
         threading.Thread(
             target=self._stop_ble_worker,
@@ -400,8 +445,12 @@ class CaptureCoordinator:
                 self.ble.force_stop()
             self._ble_ready.clear()
             with self._lock:
-                self._gateway_states.clear()
-            self._set_phase("idle", "BLE 授时已停止")
+                self._node_states.clear()
+                self._ble_control_state = "OFFLINE"
+                self._ble_time_sync_state = "STOPPED"
+                self._coordinator_serial = "未连接"
+                self._utc_map_state = "UNKNOWN"
+            self._set_phase("idle", "Mode2 常驻授时已停止")
 
     # Tracker role binding -------------------------------------------------
     def bind_tracker_roles(self) -> None:
@@ -478,11 +527,13 @@ class CaptureCoordinator:
                 raise RuntimeError("VIVE Tracker 进程已经在运行")
             self._capture_stop_requested.clear()
             self._vive_ready.clear()
+            self._ble_start_result.clear()
+            self._ble_start_ok = None
             self.error = None
             self.capture_started_at = None
             self.vive_output_dir = None
             self.phase = "starting_tracker"
-            self.message = "正在初始化 VIVE Tracker；BLE 继续授时…"
+            self.message = "正在初始化 VIVE Tracker；Mode2 继续授时…"
         self.vive.logs.append("[UI] ===== New Tracker capture =====", "system")
         threading.Thread(
             target=self._start_capture_worker,
@@ -517,12 +568,27 @@ class CaptureCoordinator:
                 self._vive_ready, self.vive, self._capture_stop_requested
             ):
                 return
-            self._set_connected_gateway_state("WAIT_START_ACK")
+            with self._lock:
+                self._ble_control_state = "STARTING"
+            self.ble_control_logs.append(
+                "[UI -> Mode2] 1 / START（等待全部 wearable ARMED）", "system"
+            )
             if not self.ble.is_active or not self.ble.send_line("1"):
-                self._set_connected_gateway_state("ERROR")
-                raise RuntimeError("无法向 BLE 控制器发送原键盘事件 1")
+                with self._lock:
+                    self._ble_control_state = "ERROR"
+                raise RuntimeError("无法向 Mode2 控制器发送键盘事件 1")
+            if not self._ble_start_result.wait(45):
+                with self._lock:
+                    self._ble_control_state = "ERROR"
+                raise RuntimeError("等待 Mode2 START 结果超时")
+            if not self._ble_start_ok:
+                raise RuntimeError("Mode2 START 未成功，详情见录制控制日志")
+            if self._capture_stop_requested.is_set():
+                return
             self.capture_started_at = _now()
-            self._set_phase("recording", "采集中：BLE 已发送 1，Tracker 正在记录")
+            self._set_phase(
+                "recording", "录制中：Mode2 START 成功，Tracker 正在记录"
+            )
         except Exception as exc:
             if self._capture_stop_requested.is_set():
                 return
@@ -533,7 +599,7 @@ class CaptureCoordinator:
             if self.ble.is_active and self._ble_ready.is_set():
                 self._set_phase(
                     "ble_ready",
-                    f"Tracker 启动失败：{exc}；BLE 仍在持续授时",
+                    f"录制启动失败：{exc}；Mode2 仍在持续授时",
                     str(exc),
                 )
             else:
@@ -543,34 +609,50 @@ class CaptureCoordinator:
         with self._lock:
             if self.phase not in {"starting_tracker", "recording"}:
                 raise RuntimeError("当前没有正在启动或运行的采集")
-            was_recording = self.phase == "recording"
             self._capture_stop_requested.set()
             self.phase = "stopping_capture"
-            self.message = "正在发送 BLE 0，并停止保存 Tracker 数据…"
+            self.message = "正在发送 Mode2 0 / STOP，并停止保存 Tracker 数据…"
             self.error = None
         threading.Thread(
             target=self._stop_capture_worker,
-            args=(was_recording,),
             name="capture-stop-sequence",
             daemon=True,
         ).start()
 
-    def _stop_capture_worker(self, was_recording: bool) -> None:
-        ble_stop_seq = self.ble.logs.last_sequence
+    def _stop_capture_worker(self) -> None:
+        self._ble_stop_result.clear()
+        self._ble_stop_ok = None
+        stop_sent = False
         if self.vive.is_active:
             self.vive.send_line("stop")
         if self.ble.is_active and self._ble_ready.is_set():
-            self._set_connected_gateway_state("WAIT_STOP_ACK")
-            self.ble.send_line("0")
+            with self._lock:
+                self._ble_control_state = "STOPPING"
+            self.ble_control_logs.append(
+                "[UI -> Mode2] 0 / STOP（等待中控确认）", "system"
+            )
+            stop_sent = self.ble.send_line("0")
         if self.vive.is_active and not self.vive.wait(20):
             self.vive.force_stop()
-        if was_recording and self.ble.is_active:
-            self.ble.logs.wait_for("Overall state:", ble_stop_seq, 12)
+        stop_confirmed = True
+        if stop_sent and self.ble.is_active and self._ble_ready.is_set():
+            stop_confirmed = self._ble_stop_result.wait(55) and bool(self._ble_stop_ok)
         self.last_stopped_at = _now()
         if self.ble.is_active and self._ble_ready.is_set():
-            self._set_phase("ble_ready", "本轮采集已停止并保存；BLE 继续持续授时")
+            if stop_confirmed:
+                self._set_phase(
+                    "ble_ready", "本轮录制已停止并保存；Mode2 继续持续授时"
+                )
+            else:
+                self._set_phase(
+                    "ble_ready",
+                    "Tracker 已保存，但未确认 Mode2 STOP 成功；请检查录制控制日志",
+                    "Mode2 STOP was not confirmed",
+                )
         else:
-            self._set_phase("error", "采集已停止，但 BLE 授时进程已退出", "BLE exited")
+            self._set_phase(
+                "error", "录制已停止，但 Mode2 授时进程已退出", "BLE exited"
+            )
 
     def _wait_until_ready(
         self,
@@ -588,86 +670,90 @@ class CaptureCoordinator:
     # Process callbacks and state ------------------------------------------
     def _on_line(self, key: str, line: str) -> None:
         if key == "ble":
-            self._update_gateway_states_from_line(line)
-            if "[READY]" in line:
-                self._ble_ready.set()
+            self._record_ble_line(line)
+            self._update_mode2_state_from_line(line)
         elif key == "vive" and "Recording poses to:" in line:
             self.vive_output_dir = line.split("Recording poses to:", 1)[1].strip()
             self._vive_ready.set()
 
-    def _update_gateway_states_from_line(self, line: str) -> None:
-        state_match = GATEWAY_STATE_PATTERN.search(line)
-        if state_match:
-            self._set_gateway_state(
-                state_match.group("device_id"), state_match.group("state")
-            )
+    def _record_ble_line(self, line: str) -> None:
+        upper = line.upper()
+        if MODE2_NODE_PATTERN.search(line) or any(
+            token in upper for token in BLE_CONTROL_TOKENS
+        ):
+            self.ble_control_logs.append(line)
+        else:
+            self.ble_timesync_logs.append(line)
 
-        ready_match = re.search(r"\[READY\]\s+Online gateways:\s*(.*)", line)
+    def _update_mode2_state_from_line(self, line: str) -> None:
+        upper = line.upper()
+        now = _now()
+
+        ready_match = MODE2_READY_PATTERN.search(line)
         if ready_match:
-            online = set(re.findall(r"\b\d+\b", ready_match.group(1)))
             with self._lock:
-                for device_id in list(self._gateway_states):
-                    if device_id not in online:
-                        self._gateway_states.pop(device_id, None)
-                for device_id in online:
-                    self._gateway_states.setdefault(
-                        device_id,
-                        {"state": "IDLE", "updated_at": _now()},
-                    )
+                self._coordinator_name = ready_match.group("name").strip()
+                self._coordinator_serial = ready_match.group("serial").strip()
+                self._ble_control_state = "IDLE"
+                self._ble_time_sync_state = "SYNCED"
+            self._ble_ready.set()
 
-        offline_match = re.search(r"\[OFFLINE\]\s+Gateways:\s*(.*)", line)
-        if offline_match and offline_match.group(1).strip().casefold() != "none":
+        node_match = MODE2_NODE_PATTERN.search(line)
+        if node_match:
+            node_id = node_match.group("node_id")
             with self._lock:
-                for device_id in re.findall(r"\b\d+\b", offline_match.group(1)):
-                    self._gateway_states.pop(device_id, None)
+                self._node_states[node_id] = {
+                    "connected": node_match.group("connected") == "1",
+                    "state": node_match.group("state").upper(),
+                    "details": node_match.group("details").strip(),
+                    "updated_at": now,
+                }
 
-        online_match = re.search(r"\[ONLINE\]\s+Gateway\s+(\d+)", line)
-        if online_match:
+        utc_match = re.search(r"\butc_map=(LOCKED|UNLOCKED)\b", line, re.IGNORECASE)
+        if utc_match:
             with self._lock:
-                self._gateway_states.setdefault(
-                    online_match.group(1),
-                    {"state": "IDLE", "updated_at": _now()},
-                )
+                self._utc_map_state = utc_match.group(1).upper()
 
-        reconnect_match = re.search(r"\[(\d+)\]\s+reconnecting\b", line, re.IGNORECASE)
-        if reconnect_match:
+        if "TIME SYNC ACCEPTED:" in upper:
             with self._lock:
-                self._gateway_states.pop(reconnect_match.group(1), None)
+                self._ble_time_sync_state = "SYNCED"
+        elif (
+            "INITIAL TIME SYNC WAS NOT ACCEPTED" in upper
+            or "PERIODIC COORDINATOR TIME SYNC FAILED" in upper
+            or "TIME_ERROR" in upper
+        ):
+            with self._lock:
+                self._ble_time_sync_state = "RETRYING"
 
-        ack_match = re.search(r"\[(\d+)\]\s+ACK\s+(START|STOP)\s+OK", line)
-        if ack_match:
-            self._set_gateway_state(
-                ack_match.group(1),
-                "RUNNING" if ack_match.group(2) == "START" else "IDLE",
+        if "[START] ALL WEARABLE NODES ARMED" in upper:
+            with self._lock:
+                self._ble_control_state = "RUNNING"
+                self._ble_start_ok = True
+            self._ble_start_result.set()
+        elif any(
+            marker in upper
+            for marker in (
+                "[START FAILED]",
+                "START REJECTED BECAUSE",
+                "START DID NOT RECEIVE",
+                "START IGNORED",
             )
-
-        failed_match = re.search(r"\[(\d+)\]\s+FAILED:", line)
-        if failed_match:
-            self._set_gateway_state(failed_match.group(1), "ERROR")
-
-        gateway_error_match = re.search(r"\[(\d+)\]\s+Gateway status:\s+GW\+ERROR", line)
-        if gateway_error_match:
-            self._set_gateway_state(gateway_error_match.group(1), "ERROR")
-
-        if "Overall state: ERROR" in line:
+        ):
             with self._lock:
-                for item in self._gateway_states.values():
-                    if item["state"] in {"WAIT_START_ACK", "WAIT_STOP_ACK"}:
-                        item["state"] = "ERROR"
-                        item["updated_at"] = _now()
+                self._ble_control_state = "ERROR"
+                self._ble_start_ok = False
+            self._ble_start_result.set()
 
-    def _set_gateway_state(self, device_id: str, state: str) -> None:
-        with self._lock:
-            self._gateway_states[device_id] = {
-                "state": state,
-                "updated_at": _now(),
-            }
-
-    def _set_connected_gateway_state(self, state: str) -> None:
-        with self._lock:
-            for item in self._gateway_states.values():
-                item["state"] = state
-                item["updated_at"] = _now()
+        if "[STOP]" in upper:
+            with self._lock:
+                self._ble_control_state = "IDLE"
+                self._ble_stop_ok = True
+            self._ble_stop_result.set()
+        elif "STOP DID NOT RECEIVE" in upper:
+            with self._lock:
+                self._ble_control_state = "ERROR"
+                self._ble_stop_ok = False
+            self._ble_stop_result.set()
 
     def _on_exit(self, key: str, exit_code: int) -> None:
         if self._shutting_down:
@@ -677,14 +763,20 @@ class CaptureCoordinator:
         if key == "ble":
             self._ble_ready.clear()
             with self._lock:
-                self._gateway_states.clear()
+                self._node_states.clear()
+                self._ble_control_state = "OFFLINE"
+                self._ble_time_sync_state = "STOPPED"
+                self._ble_start_ok = False
+                self._ble_stop_ok = False
+            self._ble_start_result.set()
+            self._ble_stop_result.set()
             if phase == "stopping_ble":
                 return
             if phase in {"starting_tracker", "recording", "stopping_capture"}:
                 self._capture_stop_requested.set()
                 self._set_phase(
                     "error",
-                    f"BLE 意外退出（代码 {exit_code}），正在停止 Tracker 以保存数据",
+                    f"Mode2 授时意外退出（代码 {exit_code}），正在停止 Tracker 以保存数据",
                     f"BLE exited with code {exit_code}",
                 )
                 threading.Thread(
@@ -695,7 +787,7 @@ class CaptureCoordinator:
             elif phase != "idle":
                 self._set_phase(
                     "error",
-                    f"BLE 授时进程意外退出（代码 {exit_code}）",
+                    f"Mode2 授时进程意外退出（代码 {exit_code}）",
                     f"BLE exited with code {exit_code}",
                 )
             return
@@ -715,16 +807,16 @@ class CaptureCoordinator:
             if self.ble.is_active and self._ble_ready.is_set():
                 self._set_phase(
                     "ble_ready",
-                    f"Tracker 在开始采集前退出（代码 {exit_code}）；BLE 继续授时",
+                    f"Tracker 在开始录制前退出（代码 {exit_code}）；Mode2 继续授时",
                     f"VIVE exited with code {exit_code}",
                 )
             else:
-                self._set_phase("error", "Tracker 与 BLE 均未正常运行")
+                self._set_phase("error", "Tracker 与 Mode2 均未正常运行")
         elif phase == "recording":
             self._capture_stop_requested.set()
             self._set_phase(
                 "stopping_capture",
-                f"Tracker 意外退出（代码 {exit_code}），正在向 BLE 发送 0",
+                f"Tracker 意外退出（代码 {exit_code}），正在向 Mode2 发送 0 / STOP",
                 f"VIVE exited with code {exit_code}",
             )
             threading.Thread(
@@ -741,22 +833,48 @@ class CaptureCoordinator:
 
     def _finish_after_unexpected_vive_exit(self) -> None:
         if self.ble.is_active and self._ble_ready.is_set():
-            self._set_connected_gateway_state("WAIT_STOP_ACK")
-            self.ble.send_line("0")
-            self._set_phase(
-                "ble_ready",
-                "Tracker 异常退出；已向 BLE 发送 0，BLE 继续授时",
-                "VIVE exited unexpectedly",
+            self._ble_stop_result.clear()
+            self._ble_stop_ok = None
+            with self._lock:
+                self._ble_control_state = "STOPPING"
+            self.ble_control_logs.append(
+                "[UI -> Mode2] Tracker 异常退出，发送 0 / STOP", "system"
             )
+            self.ble.send_line("0")
+            confirmed = self._ble_stop_result.wait(20) and bool(self._ble_stop_ok)
+            if confirmed:
+                self._set_phase(
+                    "ble_ready",
+                    "Tracker 异常退出；Mode2 STOP 已确认，常驻授时继续",
+                    "VIVE exited unexpectedly",
+                )
+            else:
+                self._set_phase(
+                    "ble_ready",
+                    "Tracker 异常退出；未确认 Mode2 STOP，请检查录制控制日志",
+                    "VIVE exited and Mode2 STOP was not confirmed",
+                )
         else:
-            self._set_phase("error", "Tracker 与 BLE 均未正常运行")
+            self._set_phase("error", "Tracker 与 Mode2 均未正常运行")
 
     def clear_logs(self) -> None:
         self.ble.logs.clear()
+        self.ble_timesync_logs.clear()
+        self.ble_control_logs.clear()
         self.vive.logs.clear()
 
-    def state(self, after_ble: int = 0, after_vive: int = 0) -> dict:
-        ble_lines, ble_sequence = self.ble.logs.since(after_ble)
+    def state(
+        self,
+        after_ble_timesync: int = 0,
+        after_ble_control: int = 0,
+        after_vive: int = 0,
+    ) -> dict:
+        timesync_lines, timesync_sequence = self.ble_timesync_logs.since(
+            after_ble_timesync
+        )
+        control_lines, control_sequence = self.ble_control_logs.since(
+            after_ble_control
+        )
         vive_lines, vive_sequence = self.vive.logs.since(after_vive)
         with self._lock:
             ble_active = self.ble.is_active
@@ -777,24 +895,39 @@ class CaptureCoordinator:
                 "capture_started_at": self.capture_started_at,
                 "last_stopped_at": self.last_stopped_at,
                 "vive_output_dir": self.vive_output_dir,
-                "gateways": [
-                    {
-                        "device_id": device_id,
-                        "state": item["state"],
-                        "updated_at": item["updated_at"],
-                    }
-                    for device_id, item in sorted(
-                        self._gateway_states.items(),
-                        key=lambda pair: int(pair[0]),
-                    )
-                ],
+                "mode2": {
+                    "name": self._coordinator_name,
+                    "serial": self._coordinator_serial,
+                    "time_sync_state": self._ble_time_sync_state,
+                    "control_state": self._ble_control_state,
+                    "utc_map_state": self._utc_map_state,
+                    "nodes": [
+                        {
+                            "node_id": node_id,
+                            "connected": item["connected"],
+                            "state": item["state"],
+                            "details": item["details"],
+                            "updated_at": item["updated_at"],
+                        }
+                        for node_id, item in sorted(
+                            self._node_states.items(), key=lambda pair: int(pair[0])
+                        )
+                    ],
+                },
                 "controls": controls,
                 "processes": {
                     "ble": self.ble.snapshot(),
                     "vive": self.vive.snapshot(),
                 },
                 "logs": {
-                    "ble": {"items": ble_lines, "last_seq": ble_sequence},
+                    "ble_timesync": {
+                        "items": timesync_lines,
+                        "last_seq": timesync_sequence,
+                    },
+                    "ble_control": {
+                        "items": control_lines,
+                        "last_seq": control_sequence,
+                    },
                     "vive": {"items": vive_lines, "last_seq": vive_sequence},
                 },
             }

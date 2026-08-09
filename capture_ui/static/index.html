@@ -12,7 +12,7 @@
       <div>
         <p class="eyebrow">LOCAL CAPTURE CONSOLE</p>
         <h1>联合数据采集</h1>
-        <p class="subtitle">BLE 时间同步 · VIVE Tracker 位姿</p>
+        <p class="subtitle">Mode2 常驻授时与录制控制 · VIVE Tracker 位姿</p>
       </div>
       <div id="clock" class="clock">--:--:--</div>
     </header>
@@ -27,25 +27,26 @@
       </div>
       <div class="actions">
         <button id="bind-button" class="button secondary">绑定 Tracker 角色</button>
-        <button id="ble-button" class="button secondary">启动 BLE 授时</button>
+        <button id="ble-button" class="button secondary">启动常驻授时</button>
         <label class="rate-field">
           <span>Tracker 采样率</span>
           <span class="input-wrap"><input id="tracker-rate" type="number" min="1" max="1000" step="1" value="120"><b>Hz</b></span>
         </label>
-        <button id="start-button" class="button primary" disabled>开始</button>
-        <button id="stop-button" class="button danger" disabled>停止</button>
+        <button id="start-button" class="button primary" disabled>开始录制</button>
+        <button id="stop-button" class="button danger" disabled>停止录制</button>
       </div>
-      <div class="gateway-bar">
-        <span class="gateway-title">蓝牙网关</span>
-        <div id="gateway-list" class="gateway-list">
-          <span class="gateway-empty">暂无已连接设备</span>
+      <div class="mode2-bar">
+        <div class="coordinator-identity">
+          <span class="mode2-title">Mode2 中控</span>
+          <strong id="coordinator-name">Mode2Coordinator · 未连接</strong>
         </div>
-        <div class="gateway-legend" aria-label="网关状态灯图例">
-          <span><i class="gateway-dot idle"></i>IDLE</span>
-          <span><i class="gateway-dot waiting"></i>等待 ACK</span>
-          <span><i class="gateway-dot running"></i>RUNNING</span>
-          <span><i class="gateway-dot error"></i>ERROR</span>
-          <span><i class="gateway-dot ota"></i>OTA</span>
+        <div class="mode2-summary">
+          <span id="timesync-chip" class="mode2-chip unknown">授时 STOPPED</span>
+          <span id="control-chip" class="mode2-chip unknown">控制 OFFLINE</span>
+          <span id="utc-chip" class="mode2-chip unknown">UTC UNKNOWN</span>
+        </div>
+        <div id="node-list" class="node-list">
+          <span class="node-empty">尚未收到 wearable 节点状态</span>
         </div>
       </div>
       <div id="notice" class="notice" hidden></div>
@@ -56,12 +57,23 @@
       <article class="terminal-card">
         <header class="terminal-header">
           <div>
-            <h2>BLE-TimeSync</h2>
-            <p>网关扫描、校准与 START / STOP</p>
+            <h2>Mode2 授时与串口</h2>
+            <p>TIME_QUERY / TIME_SET、RTT、UTC 映射与重试情况</p>
           </div>
           <span id="ble-status" class="pill stopped">未运行</span>
         </header>
-        <div id="ble-log" class="terminal" role="log" aria-live="polite"></div>
+        <div id="ble-timesync-log" class="terminal" role="log" aria-live="polite"></div>
+      </article>
+
+      <article class="terminal-card control-terminal-card">
+        <header class="terminal-header">
+          <div>
+            <h2>Mode2 录制控制</h2>
+            <p>键盘 1 / 0、START / STOP 及 wearable 确认结果</p>
+          </div>
+          <span class="pill control-pill">START / STOP</span>
+        </header>
+        <div id="ble-control-log" class="terminal" role="log" aria-live="polite"></div>
       </article>
 
       <article class="terminal-card">
@@ -81,6 +93,6 @@
       <button id="clear-button" class="text-button">清空屏幕日志</button>
     </footer>
   </main>
-  <script src="/app.js?v=20260806-4"></script>
+  <script src="/app.js?v=20260808-mode2"></script>
 </body>
 </html>

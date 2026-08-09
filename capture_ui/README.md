@@ -1,107 +1,95 @@
 # 联合数据采集 UI
 
-这是一个仅在本机运行的 Web 控制台，分别管理常驻 BLE 授时进程和每一轮联合采集：
+这是一个仅在 Windows 本机运行的 Web 控制台，用于协调两条独立链路：
 
-- `BLE-TimeSync`：扫描、连接并校准 BLE 网关，向在线网关发送 `START` / `STOP`。
-- `VIVE-Tracker_capture`：通过 OpenXR 采集 VIVE Tracker 位姿并保存 CSV/JSON。
+- `BLE-TimeSync`：Windows 通过 USB 串口连接 `Mode2Coordinator`，持续给中控和 wearable/NanoPi 授时，并发送 `START` / `STOP`。
+- `VIVE-Tracker_capture`：通过 SteamVR/OpenXR 采集 VIVE Tracker 位姿并保存 CSV/JSON。
 
-服务只监听 `127.0.0.1`，默认地址为 <http://127.0.0.1:8765>，不会对局域网开放。
+服务只监听 `127.0.0.1`，默认地址为 <http://127.0.0.1:8765>。
 
 ## 启动前准备
 
-1. 关闭会占用 ESP32 BLE 连接的手机小程序或浏览器蓝牙工具，开启并重启需要的 ESP32 网关。
-2. 确保 `BLE-TimeSync\.venv` 已按该项目 README 安装完成。
-3. 启动 Steam、SteamVR 和 VIVE Hub，确认 Tracker 均已连接并可以正常定位。
-4. Tracker 或角色发生变化时，需要重新生成 `VIVE-Tracker_capture\tracker_roles.json`。可以直接在 UI 中完成，方法见下文；也可以继续使用原命令：
+1. 将 Mode2 中控连接到电脑，并在 `BLE-TimeSync/config/config.json` 中配置正确的 `serial_port`。
+2. 确保 `BLE-TimeSync/.venv` 可用，并已安装该项目依赖。
+3. 启动 Steam、SteamVR 和 VIVE Hub，确认 Tracker 均已连接且可以正常定位。
+4. 确认 `VIVE-Tracker_capture/tracker_roles.json` 与当前 Tracker/角色一致；需要时可在 UI 中重新绑定。
 
-   ```powershell
-   .\01_绑定Tracker角色.ps1
-   ```
-
-页面顶部会显示 6 项静态启动检查。它能检查入口、Python、`uv` 和角色映射，但无法在不启动采集的情况下保证 BLE 设备在线或 OpenXR 定位正常；这两类运行状态会显示在对应终端中。
+页面顶部的静态预检只检查入口和工具是否存在。串口、中控、wearable 以及 OpenXR 的真实运行情况显示在对应状态区和日志终端中。
 
 ## 启动 UI
 
-在工作区根目录 `F:\ASC_vla\CCF-A\DataCapture_UI` 打开 PowerShell：
+在工作区根目录执行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\capture_ui\start_ui.ps1
 ```
 
-脚本会启动服务并自动打开浏览器。保持这个 PowerShell 窗口运行；关闭服务时在该窗口按 `Ctrl+C`。
-
-如需更换端口或不自动打开浏览器：
+更换端口或不自动打开浏览器：
 
 ```powershell
 .\capture_ui\start_ui.ps1 -Port 8877
 .\capture_ui\start_ui.ps1 -NoBrowser
 ```
 
-如果浏览器没有自动打开，手动访问 <http://127.0.0.1:8765>。
+## 操作逻辑
 
-## 在 UI 中绑定 Tracker 角色
+### 1. 启动常驻授时
 
-角色绑定已经集成到页面中，直接调用原项目的 `VIVE-Tracker_capture\01_绑定Tracker角色.ps1`：
+点击 **启动常驻授时**。UI 实际执行：
 
-1. 保持 SteamVR 运行，并确认所有 Tracker 已连接、可正常定位且已在 SteamVR 中分配角色。
-2. 点击 **绑定 Tracker 角色**。
-3. 绑定脚本会导出 SteamVR 当前显式分配的全部 Tracker 角色；OpenXR/OpenVR 检测过程和最终角色映射会实时显示在右侧 VIVE 终端中。
-4. 成功后页面显示“Tracker 角色绑定完成”，并自动刷新顶部预检状态。生成结果仍位于 `VIVE-Tracker_capture\tracker_roles.json`。
+```powershell
+# 工作目录：BLE-TimeSync
+.\.venv\Scripts\python.exe -u -m app.main run --control-stdin
+```
 
-绑定角色与正式采集不能同时运行。绑定过程中可以点击 **取消角色绑定**；重新绑定会更新原角色映射文件。
+程序连接 Mode2 中控、完成首次授时并输出 `[READY]` 后，页面进入“Mode2 持续授时中”。此后授时进程常驻，并按配置周期持续授时。
 
-## BLE 授时与每轮采集
+### 2. 开始录制
 
-### 1. 启动 BLE 总进程
+点击 **开始录制** 后：
 
-点击 **启动 BLE 授时**。UI 启动 `BLE-TimeSync`，等待网关扫描、连接、校准和 `[READY]`。页面显示“BLE 持续授时中”后，该进程保持常驻并继续每 10 秒周期授时；此时还没有向网关发送原键盘事件 `1`，也没有启动 Tracker 采集。
+1. UI 按原有参数启动 VIVE OpenXR 采集进程。
+2. VIVE 创建输出目录并开始记录后，UI 向常驻 Mode2 进程 stdin 发送键盘命令 `1`。
+3. Mode2 执行录制前授时、等待应用窗口、发送 `START`，并等待所有 wearable 进入 `ARMED`。
+4. 只有收到 `[START] All wearable nodes armed...` 后，页面才显示“正在录制”。
+5. START 被拒绝、失败或超时时，UI 会停止并保存刚启动的 Tracker 进程，常驻授时继续运行。
 
-BLE 启动后，按钮会变为 **停止 BLE 授时**。采集中不能直接停止 BLE，必须先停止并保存当前采集。
+### 3. 停止录制
 
-### 2. 开始一轮采集
+点击 **停止录制** 后：
 
-1. 根据需要设置 Tracker 采样率，默认 `120 Hz`。
-2. 点击 **开始**。
-3. UI 启动 VIVE OpenXR 采集，等待它完成初始化并创建本轮输出目录。
-4. Tracker 真正开始记录后，UI 向常驻 BLE 进程发送 `1`，完全对应 BLE 原来的单键 `1` 逻辑。
+1. UI 向 VIVE 进程发送 `stop`，让它完成保存并退出。
+2. UI 向 Mode2 进程 stdin 发送键盘命令 `0`，对应 `STOP`。
+3. UI 等待 Mode2 输出 `[STOP] ...`。未确认 STOP 时会在页面显示警告，并保留控制日志供检查。
+4. 本轮结束后，Mode2 授时进程不退出，仍可继续下一轮录制。
 
-### 3. 停止本轮采集
+### 4. 停止常驻授时
 
-点击 **停止**：
+所有录制轮次结束后点击 **停止常驻授时**。UI 向 Mode2 进程发送 `quit` 并关闭串口。
 
-- UI 向 BLE 发送 `0`，完全对应原来的单键 `0` 逻辑，并等待网关 ACK/帧数输出。
-- UI 同时通知 Tracker 结束当前采样、刷新 CSV 并写入 `metadata.json`，效果等价于原脚本收到 `Ctrl+C` 后保存退出。
-- Tracker 退出后，BLE 总进程不会退出，仍继续周期授时。页面回到“BLE 持续授时中”，可以再次点击 **开始** 采下一轮。
+录制进行中不能直接停止常驻授时，必须先停止并保存当前录制。
 
-### 4. 最后停止 BLE
+## 页面状态和日志
 
-所有采集轮次完成后，点击 **停止 BLE 授时**。只有这一步会向 BLE 控制进程发送 `quit`、停止 Notify 并断开 BLE。
+Mode2 状态栏显示：
 
-不要直接关闭 UI 的 PowerShell 窗口来代替页面上的 **停止**。误按 `Ctrl+C` 时服务仍会尝试保存 Tracker、发送 BLE `0` 并退出，但页面操作能给两个项目更完整的收尾时间。
+- 当前中控名称和串口；
+- 授时状态：`STOPPED`、`SYNCING`、`SYNCED`、`RETRYING`；
+- 控制状态：`OFFLINE`、`IDLE`、`STARTING`、`RUNNING`、`STOPPING`、`ERROR`；
+- 中控报告的 `utc_map` 状态；
+- 各 wearable 节点的连接和运行状态。
 
-## 页面说明
+页面将日志分为三个独立终端：
 
-- 顶部状态依次可能为：`准备就绪`、`BLE 启动中`、`BLE 持续授时中`、`Tracker 启动中`、`正在采集`、`正在停止采集`、`采集异常`。
-- 顶部“蓝牙网关”栏只显示当前已连接设备，例如 `[68] IDLE`；断线设备会从该栏移除，重连后自动恢复。
-- “绑定 Tracker 角色”调用原 `01_绑定Tracker角色.ps1`，角色读取与错误输出显示在右侧终端。
-- 左侧终端显示 BLE 扫描、连接、校准、周期同步、网关 ACK 和错误。
-- 右侧终端显示 OpenXR Runtime、Tracker 列表、采样帧计数、保存目录和错误。
-- Tracker 意外退出时，UI 会向 BLE 发送 `0`，但保留 BLE 周期授时进程；BLE 意外退出时，UI 会停止 Tracker 以保存已有数据。
-- “清空屏幕日志”只清除 UI 内存中的显示内容，不会删除项目日志或采集数据。
+- **Mode2 授时与串口**：串口连接、`TIME_QUERY/TIME_REPLY`、`TIME_SET/TIME_ACCEPT`、RTT、UTC 映射、周期授时和重试错误。
+- **Mode2 录制控制**：UI 发送的 `1/0`、START/STOP、节点状态、全部节点 ARMED、拒绝、失败和超时。
+- **VIVE Tracker**：OpenXR 初始化、Tracker 列表、采样进度、输出目录和保存结果。
 
-蓝牙网关状态灯：
-
-| 灯色 | 状态 | 含义 |
-|---|---|---|
-| 蓝色 | `IDLE` | 空闲，未采集 |
-| 黄色 | `WAIT_START_ACK` / `WAIT_STOP_ACK` | 已向 Linux 发送命令，等待确认 |
-| 绿色 | `RUNNING` | Linux 已回复 START 成功，正在采集 |
-| 红色 | `ERROR` | Linux 报错或 ACK 超时 |
-| 紫色 | OTA | 正在 OTA 模式 |
+“清空屏幕日志”只清除 UI 内存中的显示内容，不删除项目日志或采集数据。
 
 ## 数据位置
 
-BLE 日志仍由原项目写入：
+Mode2 授时日志：
 
 ```text
 BLE-TimeSync\logs\latest.log
@@ -109,7 +97,7 @@ BLE-TimeSync\logs\timesync_YYYYMMDD_HHMMSS.csv
 BLE-TimeSync\logs\timesync_YYYYMMDD_HHMMSS.jsonl
 ```
 
-VIVE 每次采集仍写入：
+VIVE 每轮录制：
 
 ```text
 VIVE-Tracker_capture\vr_captures\vr_capture_YYYYMMDD_HHMMSS\
@@ -117,60 +105,14 @@ VIVE-Tracker_capture\vr_captures\vr_capture_YYYYMMDD_HHMMSS\
 └── metadata.json
 ```
 
-页面底部会显示本次 VIVE 输出目录。
-
-## 实际执行的入口
-
-UI 使用原项目环境和入口，不复制采集实现：
-
-```powershell
-# Tracker 角色绑定（UI 使用非交互模式，原手动用法保持不变）
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\01_绑定Tracker角色.ps1 -NonInteractive
-
-# 工作目录：BLE-TimeSync
-.\.venv\Scripts\python.exe -u -m app.main run --control-stdin
-
-# 工作目录：VIVE-Tracker_capture
-uv run --script .\collect_openxr_tracker_poses_and_triggers.py `
-  --role-map .\tracker_roles.json `
-  --output-root .\vr_captures `
-  --tracker-rate 120 `
-  --control-stdin
-```
-
-`--control-stdin` 是为 UI 新增的可选桥接模式。BLE 原来的单键 `1/0` 用法和 VIVE 原来的 `Ctrl+C` 用法均保持不变。
-
-## 常见问题
-
-### 页面显示 BLE 一直准备中
-
-BLE 项目一次主动扫描最长约 30 秒，且没有可用网关时会继续重试。检查 ESP32 是否供电并广播、手机是否占用连接，以及终端里的在线/离线设备信息。BLE 进程已经创建后，可以点击 **停止 BLE 授时** 取消启动。
-
-### VIVE 初始化后立即异常退出
-
-通常需要检查 SteamVR 是否运行、是否为当前 OpenXR Runtime、Tracker 是否正常定位，以及 `tracker_roles.json` 是否与当前设备一致。具体异常会保留在右侧终端。
-
-### `uv` 首次启动较慢
-
-VIVE 脚本通过 PEP 723 声明 `pyopenxr==1.1.5301`。`uv` 第一次运行可能需要准备并缓存 Python/依赖，以后会直接复用缓存。
-
-### 端口被占用
-
-换一个端口启动，例如：
-
-```powershell
-.\capture_ui\start_ui.ps1 -Port 8877
-```
-
 ## 开发校验
 
-UI 本身只使用 Python 标准库，不需要额外安装 Web 框架。运行测试：
+UI 本身只使用 Python 标准库。运行测试：
 
 ```powershell
 cd .\capture_ui
-..\BLE-TimeSync\.venv\Scripts\python.exe -m compileall -q .
-..\BLE-TimeSync\.venv\Scripts\python.exe -m unittest discover -s tests -v
+..\BLE-TimeSync\.venv\Scripts\python.exe -B -m unittest discover -s tests -v
+node .\tests\frontend_smoke.js
 ```
 
-测试覆盖日志增量读取、独立子进程的 stdout/stdin 控制、`BLE 启动 → BLE 1 + Tracker 开始 → BLE 0 + Tracker 停止 → BLE 保持运行 → BLE quit` 的拆分生命周期，以及实际绑定随机本地端口后访问首页、状态接口和启动预检接口。硬件采集仍需在 ESP32、SteamVR 和 Tracker 均在线时进行现场验证。
+测试使用模拟子进程和模拟 Mode2 日志，不会连接真实串口、发送硬件 START/STOP 或启动 OpenXR。

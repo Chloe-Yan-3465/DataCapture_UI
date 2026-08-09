@@ -29,7 +29,8 @@ class CaptureRequestHandler(BaseHTTPRequestHandler):
             query = parse_qs(parsed.query)
             self._send_json(
                 COORDINATOR.state(
-                    self._integer_query(query, "after_ble"),
+                    self._integer_query(query, "after_ble_timesync"),
+                    self._integer_query(query, "after_ble_control"),
                     self._integer_query(query, "after_vive"),
                 )
             )

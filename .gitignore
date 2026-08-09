@@ -3,8 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+.hypothesis/
 .mypy_cache/
 .ruff_cache/
+.tox/
+.nox/
 .coverage
 .coverage.*
 htmlcov/
@@ -14,6 +17,7 @@ htmlcov/
 venv/
 env/
 ENV/
+.uv/
 
 # Python build and packaging output
 build/
@@ -27,6 +31,10 @@ BLE-TimeSync/logs/*
 !BLE-TimeSync/logs/.gitkeep
 VIVE-Tracker_capture/vr_captures/
 VIVE-Tracker_capture/captures/
+*.pid
+*.pid.lock
+*.dmp
+*.stackdump
 
 # Machine-specific device mapping
 VIVE-Tracker_capture/tracker_roles.json
@@ -36,6 +44,7 @@ VIVE-Tracker_capture/tracker_roles.json
 .env.*
 !.env.example
 BLE-TimeSync/reference/ble-miniProgram/project.private.config.json
+BLE-TimeSync/config/config.local.json
 
 # Preserved metadata from repositories nested before monorepo initialization
 .git-history-backup/
@@ -43,6 +52,10 @@ BLE-TimeSync/reference/ble-miniProgram/project.private.config.json
 # JavaScript dependencies and test output
 node_modules/
 coverage/
+.nyc_output/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Editors and operating systems
 .vscode/
@@ -52,6 +65,7 @@ coverage/
 .DS_Store
 Thumbs.db
 Desktop.ini
+ehthumbs.db
 
 # Temporary files
 *.tmp

@@ -1,32 +1,30 @@
-"""Command-line entry point for the Windows BLE time-sync application."""
+"""Command-line entry point for Windows-to-Mode2-coordinator time sync."""
 
 from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import logging
 from pathlib import Path
 import sys
 import threading
 from typing import Awaitable, Callable
 
-from .ble_client import (
-    BleAdapterUnavailableError,
-    BleDependencyError,
-    BleTimeClient,
-    TargetNotFoundError,
-)
 from .config import AppConfig, DEFAULT_CONFIG_PATH
-from .gateway_manager import GatewayManager
+from .coordinator_manager import CoordinatorManager
+from .coordinator_protocol import encode_status
+from .coordinator_time_sync import CoordinatorTimeSyncEngine
 from .logging_utils import SessionLog, configure_logging
-from .protocol import RESPONSE_SIZE
-from .time_sync import TimeSyncEngine
+from .serial_client import (
+    CoordinatorSerialClient,
+    CoordinatorSerialError,
+    SerialDependencyError,
+)
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Windows controller for three ESP32 BLE time-sync gateways"
+        description="Windows controller for the Mode2 ESP32 coordinator over USB serial"
     )
     parser.add_argument(
         "--config",
@@ -35,17 +33,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="configuration JSON path",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser("scan", help="scan only; never connect or write time")
-    subparsers.add_parser("inspect", help="inspect GATT and make one uncompensated probe")
-    subparsers.add_parser("once", help="calibrate, send one compensated update, and exit")
+    subparsers.add_parser("scan", help="list serial ports and mark the configured port")
+    subparsers.add_parser("inspect", help="open the coordinator and make one timing probe")
+    subparsers.add_parser("once", help="synchronize the coordinator once and exit")
     run_parser = subparsers.add_parser(
         "run",
-        help="connect three gateways, synchronize continuously, and accept 1/0 control keys",
-    )
-    run_parser.add_argument(
-        "--no-compensation",
-        action="store_true",
-        help="calibrate but send subsequent updates without delay compensation",
+        help="synchronize continuously and accept 1/0 capture-control keys",
     )
     run_parser.add_argument(
         "--control-stdin",
@@ -59,62 +52,52 @@ def _python_is_supported() -> bool:
     return sys.maxsize > 2**32 and sys.version_info[:2] in {(3, 11), (3, 12)}
 
 
-async def _scan(config: AppConfig, logger: logging.Logger) -> int:
-    results = await BleTimeClient.scan(config, logger)
-    if not results:
-        print("No BLE devices were discovered.")
-    else:
-        print(f"Discovered {len(results)} BLE device(s):")
-        for item in results:
-            marker = "TARGET" if item.is_target else "other"
-            services = ",".join(item.service_uuids) or "-"
-            print(
-                f"  [{marker}] name={item.name!r} address={item.address} "
-                f"RSSI={item.rssi} services={services}"
-            )
-    found_names = {item.name.casefold() for item in results}
-    missing = [
-        name for name in config.gateways.values() if name.casefold() not in found_names
-    ]
-    if missing:
-        print(f"Missing configured gateway(s): {', '.join(missing)}")
-        if not any(name.casefold() in found_names for name in config.gateways.values()):
-            print("Please:")
-            print("  1. Check that Gateway-68/69/70 are powered and advertising.")
-            print("  2. Check their BLE names and firmware identity settings.")
-            print("  3. Restart the missing gateway and scan again.")
-            return 2
-        print("Available gateways can still be used; missing gateways will be skipped.")
+async def _scan(config: AppConfig, _logger: logging.Logger) -> int:
+    ports = CoordinatorSerialClient.list_ports(config)
+    if not ports:
+        print("No serial ports were discovered.")
+        return 2
+    print(f"Discovered {len(ports)} serial port(s):")
+    for item in ports:
+        marker = "CONFIGURED" if item.is_configured else "other"
+        print(
+            f"  [{marker}] port={item.device} description={item.description!r} "
+            f"hwid={item.hwid!r}"
+        )
+    if not any(item.is_configured for item in ports):
+        print(f"Configured port {config.serial_port} is not currently present.")
+        return 2
     return 0
 
 
 async def _inspect(config: AppConfig, logger: logging.Logger) -> int:
-    client = BleTimeClient(config, logger)
+    client = CoordinatorSerialClient(config, logger)
     try:
         await client.connect()
-        print(json.dumps(client.describe_gatt(), indent=2, ensure_ascii=False))
-        print("Required service and characteristic UUIDs: OK")
-        with SessionLog(config.log_directory) as session_log:
-            engine = TimeSyncEngine(client, config, session_log, logger)
-            print("Sending one uncompensated probe to validate Notify response length...")
-            result = await engine.perform_sync(0.0)
-            if not result["success"]:
-                raise RuntimeError(str(result["error"]))
-            print(f"Notify response length: {RESPONSE_SIZE} bytes (strict parse passed)")
+        client.drain_lines()
+        await client.send(encode_status())
+        sample = await client.request_time()
+        print(f"Coordinator: {config.coordinator_name}")
+        print(f"Serial: {config.serial_port}@{config.baud_rate} 8N1")
+        print(
+            f"TIME_REPLY seq={sample.sequence} RTT={sample.total_rtt_us / 1000:.3f} ms "
+            f"net_RTT={sample.net_rtt_us / 1000:.3f} ms "
+            f"uncertainty={sample.uncertainty_us} us"
+        )
+        print("Probe only: TIME_SET was not sent.")
         return 0
     finally:
         await client.disconnect()
 
 
 async def _once(config: AppConfig, logger: logging.Logger) -> int:
-    client = BleTimeClient(config, logger)
+    client = CoordinatorSerialClient(config, logger)
     try:
         await client.connect()
         with SessionLog(config.log_directory) as session_log:
-            engine = TimeSyncEngine(client, config, session_log, logger)
-            compensation_ms = await engine.calibrate()
-            result = await engine.perform_sync(compensation_ms)
-            return 0 if result["success"] else 1
+            engine = CoordinatorTimeSyncEngine(client, config, session_log, logger)
+            await engine.synchronize(include_warmup=True)
+        return 0
     finally:
         await client.disconnect()
 
@@ -122,16 +105,10 @@ async def _once(config: AppConfig, logger: logging.Logger) -> int:
 async def _run(
     config: AppConfig,
     logger: logging.Logger,
-    no_compensation: bool,
     control_stdin: bool = False,
 ) -> int:
     with SessionLog(config.log_directory) as session_log:
-        manager = GatewayManager(
-            config,
-            session_log,
-            logger,
-            no_compensation=no_compensation,
-        )
+        manager = CoordinatorManager(config, session_log, logger)
         try:
             while True:
                 try:
@@ -140,27 +117,27 @@ async def _run(
                 except asyncio.CancelledError:
                     raise
                 except Exception:
-                    logger.exception("Gateway initialization failed")
-                    await manager.disconnect_all()
+                    logger.exception("Coordinator initialization failed")
+                    await manager.close()
                     logger.info(
-                        "Retrying gateway initialization in %.1f seconds",
+                        "Retrying coordinator initialization in %.1f seconds",
                         config.reconnect_delay_seconds,
                     )
                     await asyncio.sleep(config.reconnect_delay_seconds)
+                    manager = CoordinatorManager(config, session_log, logger)
             if control_stdin:
                 await _stdin_control_loop(manager, logger)
             else:
                 await _keyboard_control_loop(manager, logger)
+            return 0
         finally:
             await manager.close()
 
 
 async def _stdin_control_loop(
-    manager: GatewayManager,
+    manager: CoordinatorManager,
     logger: logging.Logger,
 ) -> int:
-    """Accept UI-friendly line commands without changing console-key behavior."""
-
     loop = asyncio.get_running_loop()
     commands: asyncio.Queue[str | None] = asyncio.Queue()
 
@@ -172,18 +149,14 @@ async def _stdin_control_loop(
             try:
                 loop.call_soon_threadsafe(commands.put_nowait, None)
             except RuntimeError:
-                # The event loop may already be closed after a quit command.
                 pass
 
     threading.Thread(
         target=_read_stdin,
-        name="ble-ui-stdin",
+        name="mode2-ui-stdin",
         daemon=True,
     ).start()
-    print(
-        "[CONTROL] stdin mode: send 1 to START, 0 to STOP, quit to exit.",
-        flush=True,
-    )
+    print("[CONTROL] stdin mode: send 1 to START, 0 to STOP, quit to exit.", flush=True)
 
     while True:
         command = await commands.get()
@@ -196,18 +169,18 @@ async def _stdin_control_loop(
         elif normalized in {"0", "stop"}:
             await manager.stop_all()
         elif normalized in {"q", "quit", "exit"}:
-            logger.info("UI requested BLE controller exit")
+            logger.info("UI requested coordinator controller exit")
             return 0
         elif normalized:
             logger.warning("Ignoring unknown stdin control command: %s", command)
 
 
 async def _keyboard_control_loop(
-    manager: GatewayManager,
+    manager: CoordinatorManager,
     logger: logging.Logger,
 ) -> int:
     if sys.platform != "win32":
-        raise RuntimeError("Single-key gateway control is only supported on Windows")
+        raise RuntimeError("Single-key coordinator control is only supported on Windows")
     import msvcrt
 
     command_tasks: set[asyncio.Task[object]] = set()
@@ -233,9 +206,9 @@ async def _keyboard_control_loop(
                     msvcrt.getwch()
                 continue
             if key == "1":
-                task = asyncio.create_task(manager.start_all(), name="gateway-start")
+                task = asyncio.create_task(manager.start_all(), name="coordinator-start")
             elif key == "0":
-                task = asyncio.create_task(manager.stop_all(), name="gateway-stop")
+                task = asyncio.create_task(manager.stop_all(), name="coordinator-stop")
             else:
                 continue
             command_tasks.add(task)
@@ -272,19 +245,14 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "once":
         command = lambda: _once(config, logger)
     else:
-        command = lambda: _run(
-            config,
-            logger,
-            args.no_compensation,
-            args.control_stdin,
-        )
+        command = lambda: _run(config, logger, args.control_stdin)
 
     try:
         return asyncio.run(command())
     except KeyboardInterrupt:
-        logger.info("Ctrl+C received; notifications stopped and BLE disconnected")
+        logger.info("Ctrl+C received; coordinator serial link closed")
         return 130
-    except (BleAdapterUnavailableError, BleDependencyError, TargetNotFoundError) as exc:
+    except (CoordinatorSerialError, SerialDependencyError) as exc:
         logger.error("%s", exc)
         return 2
     except Exception:

@@ -11,19 +11,23 @@ from typing import Any, Mapping
 
 
 LOG_FIELDS = (
-    "device_id",
+    "coordinator",
     "sequence",
     "windows_utc",
-    "sent_phone_us",
     "t1_wall_ns",
     "t1_monotonic_ns",
     "t4_monotonic_ns",
+    "coordinator_receive_us",
+    "coordinator_transmit_us",
     "rtt_ms",
-    "esp_processing_ms",
+    "coordinator_processing_ms",
     "net_rtt_ms",
-    "estimated_one_way_ms",
-    "compensation_ms",
-    "esp_offset_us",
+    "coordinator_ref_us",
+    "utc_ref_ns",
+    "uncertainty_us",
+    "selected",
+    "applied",
+    "accepted_nodes",
     "success",
     "error",
 )
@@ -36,7 +40,7 @@ def utc_now_text() -> str:
 def configure_logging(log_directory: str | Path) -> logging.Logger:
     log_dir = Path(log_directory)
     log_dir.mkdir(parents=True, exist_ok=True)
-    logger = logging.getLogger("ble_timesync")
+    logger = logging.getLogger("mode2_timesync")
     logger.setLevel(logging.INFO)
     logger.propagate = False
 

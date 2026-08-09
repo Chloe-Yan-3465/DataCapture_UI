@@ -1,4 +1,4 @@
-"""Configuration loading and validation."""
+"""Configuration loading and validation for the Mode2 coordinator link."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 from typing import Any
-from uuid import UUID
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -15,24 +14,17 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "config.json"
 
 @dataclass(frozen=True, slots=True)
 class AppConfig:
-    device_name_prefix: str
-    gateways: dict[str, str]
-    service_uuid: str
-    write_characteristic_uuid: str
-    status_characteristic_uuid: str
-    control_characteristic_uuid: str
-    gateway_status_characteristic_uuid: str
-    scan_timeout_seconds: float
-    connect_timeout_seconds: float
-    notify_timeout_seconds: float
+    coordinator_name: str
+    serial_port: str
+    baud_rate: int
+    serial_read_timeout_seconds: float
+    response_timeout_seconds: float
+    connect_settle_seconds: float
     calibration_warmup_samples: int
     calibration_samples: int
     calibration_interval_ms: int
     sync_interval_seconds: float
-    sync_stagger_ms: int
     control_ack_timeout_seconds: float
-    compensation_method: str
-    write_with_response: bool
     log_directory: Path
     reconnect_delay_seconds: float = 3.0
 
@@ -43,99 +35,76 @@ class AppConfig:
             raw: dict[str, Any] = json.load(handle)
 
         required = {
-            "device_name_prefix",
-            "gateways",
-            "service_uuid",
-            "write_characteristic_uuid",
-            "status_characteristic_uuid",
-            "control_characteristic_uuid",
-            "gateway_status_characteristic_uuid",
-            "scan_timeout_seconds",
-            "connect_timeout_seconds",
-            "notify_timeout_seconds",
+            "coordinator_name",
+            "serial_port",
+            "baud_rate",
+            "serial_read_timeout_seconds",
+            "response_timeout_seconds",
+            "connect_settle_seconds",
             "calibration_warmup_samples",
             "calibration_samples",
             "calibration_interval_ms",
             "sync_interval_seconds",
-            "sync_stagger_ms",
             "control_ack_timeout_seconds",
-            "compensation_method",
-            "write_with_response",
             "log_directory",
         }
         missing = sorted(required - raw.keys())
         if missing:
             raise ValueError(f"Missing configuration keys: {', '.join(missing)}")
 
-        for key in (
-            "service_uuid",
-            "write_characteristic_uuid",
-            "status_characteristic_uuid",
-            "control_characteristic_uuid",
-            "gateway_status_characteristic_uuid",
-        ):
-            raw[key] = str(UUID(str(raw[key])))
+        coordinator_name = str(raw["coordinator_name"]).strip()
+        serial_port = str(raw["serial_port"]).strip()
+        if not coordinator_name:
+            raise ValueError("coordinator_name must not be empty")
+        if not serial_port:
+            raise ValueError("serial_port must not be empty")
 
-        gateways_raw = raw["gateways"]
-        if not isinstance(gateways_raw, dict) or not gateways_raw:
-            raise ValueError("gateways must be a non-empty JSON object")
-        gateways = {str(device_id): str(name) for device_id, name in gateways_raw.items()}
-        if set(gateways) != {"68", "69", "70"}:
-            raise ValueError("gateways must define exactly device IDs 68, 69, and 70")
-        if len(set(gateways.values())) != len(gateways):
-            raise ValueError("gateway device names must be unique")
-
-        method = str(raw["compensation_method"])
-        if method not in {"net_rtt_median", "total_rtt_mean_half"}:
-            raise ValueError(
-                "compensation_method must be net_rtt_median or total_rtt_mean_half"
-            )
-        if not isinstance(raw["write_with_response"], bool):
-            raise ValueError("write_with_response must be a JSON boolean")
+        baud_rate = raw["baud_rate"]
+        if isinstance(baud_rate, bool) or not isinstance(baud_rate, int) or baud_rate <= 0:
+            raise ValueError("baud_rate must be a positive integer")
 
         positive = (
-            "scan_timeout_seconds",
-            "connect_timeout_seconds",
-            "notify_timeout_seconds",
-            "calibration_warmup_samples",
+            "serial_read_timeout_seconds",
+            "response_timeout_seconds",
+            "connect_settle_seconds",
             "calibration_samples",
             "calibration_interval_ms",
             "sync_interval_seconds",
             "control_ack_timeout_seconds",
         )
         for key in positive:
-            if not isinstance(raw[key], (int, float)) or isinstance(raw[key], bool) or raw[key] <= 0:
+            value = raw[key]
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
                 raise ValueError(f"{key} must be a positive number")
+
+        warmup = raw["calibration_warmup_samples"]
+        if isinstance(warmup, bool) or not isinstance(warmup, int) or warmup < 0:
+            raise ValueError("calibration_warmup_samples must be a non-negative integer")
+
+        reconnect_delay = raw.get("reconnect_delay_seconds", 3.0)
         if (
-            not isinstance(raw["sync_stagger_ms"], int)
-            or isinstance(raw["sync_stagger_ms"], bool)
-            or raw["sync_stagger_ms"] < 0
+            isinstance(reconnect_delay, bool)
+            or not isinstance(reconnect_delay, (int, float))
+            or reconnect_delay <= 0
         ):
-            raise ValueError("sync_stagger_ms must be a non-negative integer")
+            raise ValueError("reconnect_delay_seconds must be a positive number")
 
         log_directory = Path(str(raw["log_directory"]))
         if not log_directory.is_absolute():
             log_directory = PROJECT_ROOT / log_directory
 
         return cls(
-            device_name_prefix=str(raw["device_name_prefix"]),
-            gateways=gateways,
-            service_uuid=raw["service_uuid"],
-            write_characteristic_uuid=raw["write_characteristic_uuid"],
-            status_characteristic_uuid=raw["status_characteristic_uuid"],
-            control_characteristic_uuid=raw["control_characteristic_uuid"],
-            gateway_status_characteristic_uuid=raw["gateway_status_characteristic_uuid"],
-            scan_timeout_seconds=float(raw["scan_timeout_seconds"]),
-            connect_timeout_seconds=float(raw["connect_timeout_seconds"]),
-            notify_timeout_seconds=float(raw["notify_timeout_seconds"]),
-            calibration_warmup_samples=int(raw["calibration_warmup_samples"]),
+            coordinator_name=coordinator_name,
+            serial_port=serial_port,
+            baud_rate=baud_rate,
+            serial_read_timeout_seconds=float(raw["serial_read_timeout_seconds"]),
+            response_timeout_seconds=float(raw["response_timeout_seconds"]),
+            connect_settle_seconds=float(raw["connect_settle_seconds"]),
+            calibration_warmup_samples=warmup,
             calibration_samples=int(raw["calibration_samples"]),
             calibration_interval_ms=int(raw["calibration_interval_ms"]),
             sync_interval_seconds=float(raw["sync_interval_seconds"]),
-            sync_stagger_ms=int(raw["sync_stagger_ms"]),
             control_ack_timeout_seconds=float(raw["control_ack_timeout_seconds"]),
-            compensation_method=method,
-            write_with_response=raw["write_with_response"],
             log_directory=log_directory,
-            reconnect_delay_seconds=float(raw.get("reconnect_delay_seconds", 3.0)),
+            reconnect_delay_seconds=float(reconnect_delay),
         )
