@@ -57,6 +57,7 @@ global.fetch = async (url) => ({
       controls: {
         can_start_ble: true,
         can_stop_ble: false,
+        can_scan_wearables: false,
         can_start_capture: false,
         can_stop_capture: false,
         can_bind_trackers: true,
@@ -84,6 +85,9 @@ setTimeout(() => {
   }
   if (!elements.has("bind-button")) {
     throw new Error("bind-button control was not initialized");
+  }
+  if (!elements.has("scan-button")) {
+    throw new Error("scan-button control was not initialized");
   }
   const nodeList = elements.get("node-list");
   if (!nodeList || nodeList.children.length !== 1) {

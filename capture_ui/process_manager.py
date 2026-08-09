@@ -31,6 +31,7 @@ MODE2_READY_PATTERN = re.compile(
 
 BLE_CONTROL_TOKENS = (
     "[CONTROL]",
+    "[SCAN]",
     "[START]",
     "[START FAILED]",
     "[STOP]",
@@ -41,8 +42,9 @@ BLE_CONTROL_TOKENS = (
     "STOP DID NOT RECEIVE",
     "START SCHEDULED",
     "STOP SCHEDULED",
-    "ARMED ON ALL NODES",
+    " ARMED ",
     "NO ACTIVE SESSION",
+    "SCAN ",
 )
 
 
@@ -412,6 +414,20 @@ class CaptureCoordinator:
             if not self._ble_stop_requested.is_set():
                 self._set_phase("error", f"BLE 启动失败：{exc}", str(exc))
 
+    def scan_wearables(self) -> None:
+        with self._lock:
+            if (
+                self.phase != "ble_ready"
+                or not self.ble.is_active
+                or not self._ble_ready.is_set()
+            ):
+                raise RuntimeError("请先启动 BLE 授时并等待中控串口就绪")
+        if not self.ble.send_line("s"):
+            raise RuntimeError("无法向 BLE 授时进程发送扫描指令")
+        self.ble_control_logs.append(
+            "[UI] Requested wearable scan (keyboard s)", "system"
+        )
+
     def stop_ble(self) -> None:
         with self._lock:
             if self.phase in {"starting_tracker", "recording", "stopping_capture"}:
@@ -707,7 +723,7 @@ class CaptureCoordinator:
                 self._coordinator_serial = ready_match.group("serial").strip()
                 self._ble_control_state = "IDLE"
                 self._ble_control_result = "STANDBY"
-                self._ble_time_sync_state = "SYNCED"
+                self._ble_time_sync_state = "SYNCING"
             self._ble_ready.set()
 
         node_match = MODE2_NODE_PATTERN.search(line)
@@ -737,7 +753,7 @@ class CaptureCoordinator:
             with self._lock:
                 self._ble_time_sync_state = "RETRYING"
 
-        if "[START] ALL WEARABLE NODES ARMED" in upper:
+        if "[START]" in upper and "WEARABLE" in upper and "ARMED" in upper:
             with self._lock:
                 self._ble_control_state = "RUNNING"
                 self._ble_control_result = "START_OK"
@@ -904,6 +920,7 @@ class CaptureCoordinator:
                 "can_start_ble": self.phase in {"idle", "error"} and not ble_active and not vive_active,
                 "can_stop_ble": ble_active and not vive_active and self.phase in {"starting_ble", "ble_ready", "error"},
                 "can_start_capture": self.phase == "ble_ready" and ble_active and self._ble_ready.is_set() and not vive_active,
+                "can_scan_wearables": self.phase == "ble_ready" and ble_active and self._ble_ready.is_set() and not vive_active,
                 "can_stop_capture": self.phase in {"starting_tracker", "recording"},
                 "can_bind_trackers": self.phase in {"idle", "error"} and not ble_active and not vive_active,
                 "can_cancel_binding": self.phase == "binding_trackers",

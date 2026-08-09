@@ -6,7 +6,13 @@ import asyncio
 import logging
 
 from .config import AppConfig
-from .coordinator_protocol import encode_abort, encode_start, encode_status, encode_stop
+from .coordinator_protocol import (
+    encode_abort,
+    encode_scan,
+    encode_start,
+    encode_status,
+    encode_stop,
+)
 from .coordinator_time_sync import CoordinatorTimeSyncEngine
 from .logging_utils import SessionLog
 from .serial_client import CoordinatorSerialClient
@@ -15,6 +21,16 @@ from .serial_client import CoordinatorSerialClient
 # ESP32 kTimePlanLeadUs is 1.5 seconds. This guard lets the wearable deliver
 # the scheduled UART TIMESYNC while all NanoPi capture processes are still IDLE.
 PRE_START_TIME_APPLY_GUARD_SECONDS = 2.0
+
+
+def _is_start_success_line(value: str) -> bool:
+    """Accept the coordinator's final ARMED line for any connected node count."""
+    fields = value.strip().split()
+    return (
+        len(fields) >= 3
+        and fields[0].casefold() == "session"
+        and any(field.upper() == "ARMED" for field in fields[2:])
+    )
 
 
 class CoordinatorManager:
@@ -43,19 +59,6 @@ class CoordinatorManager:
     async def initialize(self) -> None:
         await self.client.connect()
         await self.client.send(encode_status())
-        first_attempt = True
-        while not self._closing:
-            try:
-                await self._synchronize(include_warmup=first_attempt)
-                break
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                self.logger.exception(
-                    "Initial time sync was not accepted; the wearable links may still be calibrating"
-                )
-                first_attempt = False
-                await asyncio.sleep(self.config.reconnect_delay_seconds)
         if self._closing:
             return
         self._sync_task = asyncio.create_task(
@@ -65,17 +68,30 @@ class CoordinatorManager:
             f"\n[READY] {self.config.coordinator_name} via "
             f"{self.config.serial_port}@{self.config.baud_rate}"
         )
-        print("Press 1 to START, 0 to STOP, Ctrl+C to exit. No Enter is required.\n")
+        print(
+            "Press S to SCAN, 1 to START, 0 to STOP, Ctrl+C to exit. "
+            "No Enter is required.\n"
+        )
 
     async def _periodic_sync(self) -> None:
+        first_attempt = True
         while not self._closing:
-            await asyncio.sleep(self.config.sync_interval_seconds)
             try:
-                await self._synchronize()
+                await self._synchronize(include_warmup=first_attempt)
             except asyncio.CancelledError:
                 raise
             except Exception:
-                self.logger.exception("Periodic coordinator time sync failed")
+                self.logger.exception(
+                    "Initial coordinator time sync failed"
+                    if first_attempt
+                    else "Periodic coordinator time sync failed"
+                )
+            first_attempt = False
+            await asyncio.sleep(self.config.sync_interval_seconds)
+
+    async def scan(self) -> None:
+        await self.client.send(encode_scan())
+        print("\n[SCAN] Wearable discovery requested.\n", flush=True)
 
     async def start_all(self) -> bool:
         async with self._control_lock:
@@ -97,7 +113,7 @@ class CoordinatorManager:
             try:
                 line = await self.client.wait_for_line(
                     lambda value: (
-                        " ARMED on all nodes" in value
+                        _is_start_success_line(value)
                         or value.startswith("START rejected:")
                         or value.startswith("START aborted:")
                     ),
@@ -107,9 +123,12 @@ class CoordinatorManager:
                 self.control_state = "ERROR"
                 self.logger.exception("START did not receive a final coordinator result")
                 return False
-            if " ARMED on all nodes" in line:
+            if _is_start_success_line(line):
                 self.control_state = "RUNNING"
-                print("\n[START] All wearable nodes armed; synchronized capture scheduled.\n")
+                print(
+                    "\n[START] Connected wearable nodes armed; "
+                    "synchronized capture scheduled.\n"
+                )
                 return True
             self.control_state = "ERROR"
             print(f"\n[START FAILED] {line}\n")

@@ -173,6 +173,13 @@ class SplitBleAndCaptureLifecycleTests(unittest.TestCase):
                 "ble", "[READY] Mode2Coordinator via COM14@115200"
             )
             wait_for_phase(coordinator, "ble_ready")
+            self.assertEqual(
+                coordinator.state()["mode2"]["time_sync_state"], "SYNCING"
+            )
+
+            coordinator.scan_wearables()
+            self.assertIn("s", coordinator.ble.commands)
+            self.assertTrue(coordinator.state()["controls"]["can_scan_wearables"])
 
             coordinator.start_capture(120)
             deadline = time.monotonic() + 3
@@ -186,7 +193,7 @@ class SplitBleAndCaptureLifecycleTests(unittest.TestCase):
                 time.sleep(0.01)
             coordinator._on_line(
                 "ble",
-                "[START] All wearable nodes armed; synchronized capture scheduled.",
+                "[START] Connected wearable nodes armed; synchronized capture scheduled.",
             )
             wait_for_phase(coordinator, "recording")
             self.assertIn("1", coordinator.ble.commands)
@@ -229,11 +236,11 @@ class Mode2StateAndLogTests(unittest.TestCase):
         )
         coordinator._on_line(
             "ble",
-            "2026-08-08 INFO mode2_timesync: Time sync accepted: seq=12 nodes=3",
+            "2026-08-08 INFO mode2_timesync: Time sync accepted: seq=12 nodes=2",
         )
         coordinator._on_line(
             "ble",
-            "[START] All wearable nodes armed; synchronized capture scheduled.",
+            "[START] Connected wearable nodes armed; synchronized capture scheduled.",
         )
 
         state = coordinator.state()
@@ -260,8 +267,8 @@ class Mode2StateAndLogTests(unittest.TestCase):
             item["text"] for item in state["logs"]["ble_control"]["items"]
         ]
         self.assertTrue(any("Time sync accepted" in line for line in timesync_text))
-        self.assertTrue(any("All wearable nodes armed" in line for line in control_text))
-        self.assertFalse(any("All wearable nodes armed" in line for line in timesync_text))
+        self.assertTrue(any("Connected wearable nodes armed" in line for line in control_text))
+        self.assertFalse(any("Connected wearable nodes armed" in line for line in timesync_text))
 
     def test_start_failure_does_not_enter_recording(self) -> None:
         coordinator = CaptureCoordinator()

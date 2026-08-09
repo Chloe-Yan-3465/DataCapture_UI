@@ -37,7 +37,7 @@ class _FakeClient:
 
     async def apply_time(self, sample: TimeExchange) -> TimeAccept:
         self.applied = sample
-        return TimeAccept(sample.sequence, 3, sample.uncertainty_us)
+        return TimeAccept(sample.sequence, 2, sample.uncertainty_us)
 
 
 class CoordinatorTimeSyncTests(unittest.IsolatedAsyncioTestCase):
@@ -65,7 +65,7 @@ class CoordinatorTimeSyncTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sum(bool(row["selected"]) for row in session.records), 1)
         selected_row = next(row for row in session.records if row["selected"])
         self.assertTrue(selected_row["applied"])
-        self.assertEqual(selected_row["accepted_nodes"], 3)
+        self.assertEqual(selected_row["accepted_nodes"], 2)
 
 
 if __name__ == "__main__":

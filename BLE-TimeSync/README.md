@@ -65,8 +65,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 
 运行后：
 
+- 按 `S`：向中控发送 `SCAN`，触发一次 4 秒 wearable 扫描；中控平时不会自动扫描新设备。
 - 按 `1`：先完成一轮新授时并等待2秒应用窗口，再发送无 ID 的
-  `START`，最后等待中控报告三节点全部 `ARMED`。
+  `START`，最后等待中控报告当前已连接节点均已 `ARMED`。
 - 按 `0`：发送无 ID 的 `STOP`。
 - `Ctrl+C`：退出并关闭串口。
 
@@ -88,20 +89,21 @@ ESP32   -> TIME_REPLY <seq> <coordinator_rx_us> <coordinator_tx_us>
 
 Windows -> TIME_SET <seq> <coordinator_ref_us> <utc_ref_ns> <uncertainty_us>
 ESP32   -> TIME_PLAN ...
-ESP32   -> TIME_ACCEPT seq=<seq> nodes=3 uncertainty_us=<value>
+ESP32   -> TIME_ACCEPT seq=<seq> nodes=<connected_count> uncertainty_us=<value>
         或 TIME_ERROR ...
 ```
 
-Windows 连续查询多次，剔除预热样本，选择净 RTT 最小的样本。`coordinator_ref_us` 和 `utc_ref_ns` 都取该次往返的中点，`uncertainty_us` 取扣除 ESP32 处理时间后的半程延迟上界。只有收到 `TIME_ACCEPT`，该轮授时才记录为成功。
+Windows 连续查询多次，剔除预热样本，选择净 RTT 最小的样本。`coordinator_ref_us` 和 `utc_ref_ns` 都取该次往返的中点，`uncertainty_us` 取扣除 ESP32 处理时间后的半程延迟上界。只有收到 `TIME_ACCEPT`，该轮授时才记录为成功；`nodes` 可以是当前实际连接并成功授时的 1～3 个节点，Windows 不要求固定等于 3。
 
 采集控制严格发送：
 
 ```text
+SCAN
 START
 STOP
 ```
 
-Windows 不发送 session ID；中控固件自行生成内部 session，并统一下发给三个 wearable。
+Windows 不发送 session ID；中控固件自行生成内部 session，并统一下发给当前已连接的 wearable。
 
 ## 输出
 
@@ -115,5 +117,5 @@ Windows 不发送 session ID；中控固件自行生成内部 session，并统�
 
 - `Cannot open COMx`：COM 号错误、串口助手仍占用端口，或中控未连接。
 - `TIME_ERROR nodes are not synchronized`：中控与 wearable 的 BLE 时钟拟合尚未完成；`run` 会保持串口连接并重试。
-- `START rejected`：至少一个 wearable 未连接、未同步或状态不是 `IDLE/FAULT`。
-- 看不到 `TIME_ACCEPT nodes=3`：不要开始正式采集，先检查三个 wearable 的电源与 BLE 状态。
+- `START rejected`：当前参与录制的某个已连接 wearable 未同步，或状态不是 `IDLE/FAULT`。
+- 看不到 `TIME_ACCEPT nodes=<count>`：当前没有节点完成可用的 BLE 时钟拟合；检查需要参与录制的 wearable 电源与 BLE 状态。

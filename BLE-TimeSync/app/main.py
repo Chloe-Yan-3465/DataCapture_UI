@@ -38,12 +38,12 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("once", help="synchronize the coordinator once and exit")
     run_parser = subparsers.add_parser(
         "run",
-        help="synchronize continuously and accept 1/0 capture-control keys",
+        help="synchronize continuously and accept S/1/0 control keys",
     )
     run_parser.add_argument(
         "--control-stdin",
         action="store_true",
-        help="accept line-based 1/0/quit commands from stdin (for the local Web UI)",
+        help="accept line-based s/1/0/quit commands from stdin (for the local Web UI)",
     )
     return parser
 
@@ -156,7 +156,11 @@ async def _stdin_control_loop(
         name="mode2-ui-stdin",
         daemon=True,
     ).start()
-    print("[CONTROL] stdin mode: send 1 to START, 0 to STOP, quit to exit.", flush=True)
+    print(
+        "[CONTROL] stdin mode: send s to SCAN, 1 to START, "
+        "0 to STOP, quit to exit.",
+        flush=True,
+    )
 
     while True:
         command = await commands.get()
@@ -164,7 +168,9 @@ async def _stdin_control_loop(
             logger.info("Control stdin closed; exiting")
             return 0
         normalized = command.casefold()
-        if normalized in {"1", "start"}:
+        if normalized in {"s", "scan"}:
+            await manager.scan()
+        elif normalized in {"1", "start"}:
             await manager.start_all()
         elif normalized in {"0", "stop"}:
             await manager.stop_all()
@@ -205,7 +211,9 @@ async def _keyboard_control_loop(
                 if msvcrt.kbhit():
                     msvcrt.getwch()
                 continue
-            if key == "1":
+            if key.casefold() == "s":
+                task = asyncio.create_task(manager.scan(), name="coordinator-scan")
+            elif key == "1":
                 task = asyncio.create_task(manager.start_all(), name="coordinator-start")
             elif key == "0":
                 task = asyncio.create_task(manager.stop_all(), name="coordinator-stop")

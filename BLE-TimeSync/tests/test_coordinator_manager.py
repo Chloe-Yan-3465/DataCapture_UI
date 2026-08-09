@@ -18,6 +18,13 @@ class _FakeClient:
     def __init__(self) -> None:
         self.lines: asyncio.Queue[str] = asyncio.Queue()
         self.payloads: list[bytes] = []
+        self.connected = False
+
+    async def connect(self) -> None:
+        self.connected = True
+
+    async def disconnect(self) -> None:
+        self.connected = False
 
     def drain_lines(self) -> None:
         while not self.lines.empty():
@@ -26,8 +33,8 @@ class _FakeClient:
     async def send(self, payload: bytes) -> None:
         self.payloads.append(payload)
         if payload == b"START\n":
-            self.lines.put_nowait("session 123 planned; common epoch=1us, waiting for 3 Neo ACK(s)")
-            self.lines.put_nowait("session 123 ARMED on all nodes")
+            self.lines.put_nowait("session 123 planned; common epoch=1us, waiting for 2 Neo ACK(s)")
+            self.lines.put_nowait("session 123 ARMED on connected nodes")
         elif payload == b"STOP\n":
             self.lines.put_nowait("STOP scheduled at coordinator=200us")
 
@@ -53,7 +60,24 @@ class _FailingEngine:
 
 
 class CoordinatorManagerTests(unittest.IsolatedAsyncioTestCase):
-    async def test_start_and_stop_use_bare_commands_without_session_ids(self) -> None:
+    async def test_initialize_does_not_wait_for_a_wearable_before_ready(self) -> None:
+        manager = CoordinatorManager(
+            AppConfig.load(DEFAULT_CONFIG_PATH),
+            _MemoryLog(),  # type: ignore[arg-type]
+            logging.getLogger("test.coordinator-manager.initialize"),
+        )
+        fake = _FakeClient()
+        manager.client = fake  # type: ignore[assignment]
+        manager.engine = _FailingEngine()  # type: ignore[assignment]
+
+        await manager.initialize()
+        self.assertTrue(fake.connected)
+        self.assertEqual(fake.payloads, [b"STATUS\n"])
+        self.assertIsNotNone(manager._sync_task)
+        await manager.close()
+        self.assertFalse(fake.connected)
+
+    async def test_scan_start_and_stop_use_bare_commands_without_session_ids(self) -> None:
         manager = CoordinatorManager(
             AppConfig.load(DEFAULT_CONFIG_PATH),
             _MemoryLog(),  # type: ignore[arg-type]
@@ -67,11 +91,12 @@ class CoordinatorManagerTests(unittest.IsolatedAsyncioTestCase):
         with patch(
             "app.coordinator_manager.PRE_START_TIME_APPLY_GUARD_SECONDS", 0.0
         ):
+            await manager.scan()
             self.assertTrue(await manager.start_all())
         self.assertEqual(manager.control_state, "RUNNING")
         self.assertTrue(await manager.stop_all())
         self.assertEqual(manager.control_state, "IDLE")
-        self.assertEqual(fake.payloads, [b"START\n", b"STOP\n"])
+        self.assertEqual(fake.payloads, [b"SCAN\n", b"START\n", b"STOP\n"])
         self.assertEqual(fake_engine.calls, 1)
 
     async def test_failed_pre_start_sync_never_sends_start(self) -> None:

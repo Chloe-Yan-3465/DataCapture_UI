@@ -42,7 +42,9 @@ powershell -ExecutionPolicy Bypass -File .\capture_ui\start_ui.ps1
 .\.venv\Scripts\python.exe -u -m app.main run --control-stdin
 ```
 
-程序连接 Mode2 中控、完成首次授时并输出 `[READY]` 后，页面进入“Mode2 持续授时中”。此后授时进程常驻，并按配置周期持续授时。
+程序连接 Mode2 中控串口并输出 `[READY]` 后，页面进入“Mode2 持续授时中”。授时进程会立即在后台尝试授时，并按配置周期持续重试；没有已连接 wearable 时不阻塞 UI 操作。
+
+点击 **扫描 wearable** 会向常驻 Mode2 进程发送键盘命令 `s`，进而通过串口发送 `SCAN`。中控仅在收到该命令时执行一次扫描，平时不会自动扫描新设备；已经连接的 wearable 仍持续接收时钟同步。
 
 ### 2. 开始录制
 
@@ -50,8 +52,8 @@ powershell -ExecutionPolicy Bypass -File .\capture_ui\start_ui.ps1
 
 1. UI 按原有参数启动 VIVE OpenXR 采集进程。
 2. VIVE 创建输出目录并开始记录后，UI 向常驻 Mode2 进程 stdin 发送键盘命令 `1`。
-3. Mode2 执行录制前授时、等待应用窗口、发送 `START`，并等待所有 wearable 进入 `ARMED`。
-4. 只有收到 `[START] All wearable nodes armed...` 后，页面才显示“正在录制”。
+3. Mode2 执行录制前授时、等待应用窗口、发送 `START`，并等待当前已连接的 wearable 进入 `ARMED`。
+4. 只有收到 `[START] Connected wearable nodes armed...` 后，页面才显示“正在录制”。
 5. START 被拒绝、失败或超时时，UI 会停止并保存刚启动的 Tracker 进程，常驻授时继续运行。
 
 ### 3. 停止录制
@@ -82,7 +84,7 @@ Mode2 状态栏显示：
 页面将日志分为三个独立终端：
 
 - **Mode2 授时与串口**：串口连接、`TIME_QUERY/TIME_REPLY`、`TIME_SET/TIME_ACCEPT`、RTT、UTC 映射、周期授时和重试错误。
-- **Mode2 录制控制**：UI 发送的 `1/0`、START/STOP、节点状态、全部节点 ARMED、拒绝、失败和超时。
+- **Mode2 录制控制**：UI 发送的 `s/1/0`、SCAN、START/STOP、已连接节点 ARMED、拒绝、失败和超时。
 - **VIVE Tracker**：OpenXR 初始化、Tracker 列表、采样进度、输出目录和保存结果。
 
 “清空屏幕日志”只清除 UI 内存中的显示内容，不删除项目日志或采集数据。
