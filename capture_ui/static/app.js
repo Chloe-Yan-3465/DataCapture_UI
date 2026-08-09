@@ -76,6 +76,22 @@ function mode2StateClass(state) {
   return "unknown";
 }
 
+function renderControlResult(result = "OFFLINE") {
+  const states = {
+    OFFLINE: ["未连接", "offline"],
+    STANDBY: ["待机", "standby"],
+    STARTING: ["START 中", "pending"],
+    START_OK: ["START 成功", "start-ok"],
+    STOPPING: ["STOP 中", "pending"],
+    STOP_OK: ["STOP 成功", "stop-ok"],
+    ERROR: ["控制失败", "failed"],
+  };
+  const [label, className] = states[result] || states.OFFLINE;
+  const badge = byId("control-result");
+  badge.textContent = label;
+  badge.className = `pill control-result ${className}`;
+}
+
 function renderMode2(mode2 = {}) {
   const name = mode2.name || "Mode2Coordinator";
   const serial = mode2.serial || "未连接";
@@ -90,6 +106,7 @@ function renderMode2(mode2 = {}) {
     chip.textContent = label;
     chip.className = `mode2-chip ${mode2StateClass(state || "UNKNOWN")}`;
   }
+  renderControlResult(mode2.control_result);
 
   const nodes = mode2.nodes || [];
   const list = byId("node-list");
@@ -146,7 +163,6 @@ function renderState(state) {
   byId("output-path").textContent = state.vive_output_dir
     ? `VIVE 输出目录：${state.vive_output_dir}`
     : "VIVE 输出目录：尚未开始";
-  if (previousPhase === "binding_trackers" && state.phase !== "binding_trackers") loadPreflight();
   previousPhase = state.phase;
 }
 
@@ -165,23 +181,6 @@ async function pollState() {
     showNotice(`无法连接本地 UI 服务：${error.message}`);
   } finally {
     pollBusy = false;
-  }
-}
-
-async function loadPreflight() {
-  try {
-    const data = await request("/api/preflight");
-    const container = byId("preflight");
-    container.replaceChildren(...data.checks.map((check) => {
-      const item = document.createElement("span");
-      item.className = `check ${check.ok ? "ok" : "bad"}`;
-      item.textContent = check.name;
-      item.title = check.detail;
-      return item;
-    }));
-    if (!data.ok) showNotice("启动检查未通过；请把鼠标移到红色项目上查看详情。");
-  } catch (error) {
-    showNotice(error.message);
   }
 }
 
@@ -259,6 +258,5 @@ function updateClock() {
 
 updateClock();
 setInterval(updateClock, 1000);
-loadPreflight();
 pollState();
 setInterval(pollState, 600);

@@ -14,7 +14,7 @@
 3. 启动 Steam、SteamVR 和 VIVE Hub，确认 Tracker 均已连接且可以正常定位。
 4. 确认 `VIVE-Tracker_capture/tracker_roles.json` 与当前 Tracker/角色一致；需要时可在 UI 中重新绑定。
 
-页面顶部的静态预检只检查入口和工具是否存在。串口、中控、wearable 以及 OpenXR 的真实运行情况显示在对应状态区和日志终端中。
+UI 会在执行相关操作时检查入口和工具是否存在，并直接显示失败原因。串口、中控、wearable 以及 OpenXR 的真实运行情况显示在对应状态区和日志终端中。
 
 ## 启动 UI
 

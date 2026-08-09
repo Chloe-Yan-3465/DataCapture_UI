@@ -48,6 +48,7 @@ global.fetch = async (url) => ({
         serial: "COM14@115200",
         time_sync_state: "SYNCED",
         control_state: "IDLE",
+        control_result: "STANDBY",
         utc_map_state: "LOCKED",
         nodes: [
           { node_id: "1", connected: true, state: "IDLE", details: "session=0", updated_at: "2026-08-08T12:00:00+08:00" },
@@ -90,6 +91,9 @@ setTimeout(() => {
   }
   if (elements.get("control-chip").textContent !== "控制 IDLE") {
     throw new Error("Mode2 control state was not rendered");
+  }
+  if (elements.get("control-result").textContent !== "待机") {
+    throw new Error("Mode2 control result badge was not rendered");
   }
   process.stdout.write("frontend runtime smoke: OK\n");
 }, 20);

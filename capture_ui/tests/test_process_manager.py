@@ -190,6 +190,7 @@ class SplitBleAndCaptureLifecycleTests(unittest.TestCase):
             )
             wait_for_phase(coordinator, "recording")
             self.assertIn("1", coordinator.ble.commands)
+            self.assertEqual(coordinator.state()["mode2"]["control_result"], "START_OK")
 
             coordinator.stop_capture()
             deadline = time.monotonic() + 3
@@ -203,6 +204,7 @@ class SplitBleAndCaptureLifecycleTests(unittest.TestCase):
             self.assertIn("stop", coordinator.vive.commands)
             self.assertTrue(coordinator.ble.is_active)
             self.assertFalse(coordinator.vive.is_active)
+            self.assertEqual(coordinator.state()["mode2"]["control_result"], "STOP_OK")
 
             coordinator.stop_ble()
             wait_for_phase(coordinator, "idle")
@@ -238,6 +240,7 @@ class Mode2StateAndLogTests(unittest.TestCase):
         self.assertEqual(state["mode2"]["serial"], "COM14@115200")
         self.assertEqual(state["mode2"]["utc_map_state"], "LOCKED")
         self.assertEqual(state["mode2"]["control_state"], "RUNNING")
+        self.assertEqual(state["mode2"]["control_result"], "START_OK")
         self.assertEqual(
             state["mode2"]["nodes"],
             [
