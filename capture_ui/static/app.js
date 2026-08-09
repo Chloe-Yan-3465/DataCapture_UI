@@ -24,6 +24,7 @@ let pollBusy = false;
 
 const byId = (id) => document.getElementById(id);
 const bleButton = byId("ble-button");
+const scanButton = byId("scan-button");
 const startButton = byId("start-button");
 const bindButton = byId("bind-button");
 const stopButton = byId("stop-button");
@@ -144,6 +145,7 @@ function renderState(state) {
   const bleRunning = Boolean(state.processes.ble.pid);
   bleButton.textContent = bleRunning ? "停止常驻授时" : "启动常驻授时";
   bleButton.disabled = bleRunning ? !controls.can_stop_ble : !controls.can_start_ble;
+  scanButton.disabled = !controls.can_scan_wearables;
   bindButton.textContent = controls.can_cancel_binding ? "取消角色绑定" : "绑定 Tracker 角色";
   bindButton.disabled = !(controls.can_bind_trackers || controls.can_cancel_binding);
   startButton.disabled = !controls.can_start_capture;
@@ -221,6 +223,18 @@ bleButton.addEventListener("click", async () => {
   try {
     const path = bleButton.textContent.startsWith("停止") ? "/api/ble/stop" : "/api/ble/start";
     await request(path, { method: "POST", body: "{}" });
+    await pollState();
+  } catch (error) {
+    notice.dataset.manual = "true";
+    showNotice(error.message);
+  }
+});
+
+scanButton.addEventListener("click", async () => {
+  showNotice("");
+  delete notice.dataset.manual;
+  try {
+    await request("/api/ble/scan", { method: "POST", body: "{}" });
     await pollState();
   } catch (error) {
     notice.dataset.manual = "true";

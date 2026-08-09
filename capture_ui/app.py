@@ -50,6 +50,9 @@ class CaptureRequestHandler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/ble/stop":
                 COORDINATOR.stop_ble()
                 self._send_json({"ok": True}, HTTPStatus.ACCEPTED)
+            elif parsed.path == "/api/ble/scan":
+                COORDINATOR.scan_wearables()
+                self._send_json({"ok": True}, HTTPStatus.ACCEPTED)
             elif parsed.path in {"/api/capture/start", "/api/start"}:
                 COORDINATOR.start_capture(float(body.get("tracker_rate", 120)))
                 self._send_json({"ok": True}, HTTPStatus.ACCEPTED)

@@ -7,6 +7,7 @@ from app.coordinator_protocol import (
     TimeAccept,
     TimeError,
     TimeReply,
+    encode_scan,
     encode_start,
     encode_stop,
     encode_time_query,
@@ -23,15 +24,16 @@ class CoordinatorProtocolTests(unittest.TestCase):
             encode_time_set(7, 123456, 1_700_000_000_000_000_000, 250),
             b"TIME_SET 7 123456 1700000000000000000 250\n",
         )
+        self.assertEqual(encode_scan(), b"SCAN\n")
         self.assertEqual(encode_start(), b"START\n")
         self.assertEqual(encode_stop(), b"STOP\n")
 
     def test_parses_reply_accept_and_error(self) -> None:
         reply = parse_coordinator_line("TIME_REPLY 7 1000 1010")
-        accepted = parse_coordinator_line("TIME_ACCEPT seq=7 nodes=3 uncertainty_us=250")
+        accepted = parse_coordinator_line("TIME_ACCEPT seq=7 nodes=1 uncertainty_us=250")
         error = parse_coordinator_line("TIME_ERROR seq=7 node=2 BLE write failed")
         self.assertEqual(reply, TimeReply(7, 1000, 1010))
-        self.assertEqual(accepted, TimeAccept(7, 3, 250))
+        self.assertEqual(accepted, TimeAccept(7, 1, 250))
         self.assertIsInstance(error, TimeError)
         self.assertEqual(error.sequence, 7)  # type: ignore[union-attr]
 

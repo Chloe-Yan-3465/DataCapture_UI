@@ -28,6 +28,7 @@ class ServerRuntimeTests(unittest.TestCase):
                 self.assertEqual(response.status, 200)
                 self.assertIn("联合数据采集", page)
                 self.assertIn("bind-button", page)
+                self.assertIn("scan-button", page)
             with urlopen(base_url + "/api/state", timeout=5) as response:
                 state = json.load(response)
                 self.assertEqual(state["phase"], "idle")
@@ -37,6 +38,7 @@ class ServerRuntimeTests(unittest.TestCase):
             routes = [
                 ("/api/ble/start", "start_ble"),
                 ("/api/ble/stop", "stop_ble"),
+                ("/api/ble/scan", "scan_wearables"),
                 ("/api/capture/start", "start_capture"),
                 ("/api/capture/stop", "stop_capture"),
             ]

@@ -91,6 +91,10 @@ def encode_status() -> bytes:
     return b"STATUS\n"
 
 
+def encode_scan() -> bytes:
+    return b"SCAN\n"
+
+
 def parse_coordinator_line(line: str) -> TimeReply | TimeAccept | TimeError | None:
     text = line.strip("\x00\r\n ")
     match = TIME_REPLY_RE.fullmatch(text)
