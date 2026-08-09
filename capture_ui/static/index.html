@@ -10,9 +10,7 @@
   <main class="shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">LOCAL CAPTURE CONSOLE</p>
         <h1>联合数据采集</h1>
-        <p class="subtitle">Mode2 常驻授时与录制控制 · VIVE Tracker 位姿</p>
       </div>
       <div id="clock" class="clock">--:--:--</div>
     </header>
@@ -50,7 +48,6 @@
         </div>
       </div>
       <div id="notice" class="notice" hidden></div>
-      <div id="preflight" class="preflight"></div>
     </section>
 
     <section class="terminal-grid">
@@ -71,7 +68,7 @@
             <h2>Mode2 录制控制</h2>
             <p>键盘 1 / 0、START / STOP 及 wearable 确认结果</p>
           </div>
-          <span class="pill control-pill">START / STOP</span>
+          <span id="control-result" class="pill control-result standby">待机</span>
         </header>
         <div id="ble-control-log" class="terminal" role="log" aria-live="polite"></div>
       </article>

@@ -293,6 +293,7 @@ class CaptureCoordinator:
         self._ble_start_ok: bool | None = None
         self._ble_stop_ok: bool | None = None
         self._ble_control_state = "OFFLINE"
+        self._ble_control_result = "OFFLINE"
         self._ble_time_sync_state = "STOPPED"
         self._coordinator_name = "Mode2Coordinator"
         self._coordinator_serial = "未连接"
@@ -370,6 +371,7 @@ class CaptureCoordinator:
             self._ble_start_ok = None
             self._ble_stop_ok = None
             self._ble_control_state = "CONNECTING"
+            self._ble_control_result = "STANDBY"
             self._ble_time_sync_state = "SYNCING"
             self._coordinator_serial = "连接中"
             self._utc_map_state = "UNKNOWN"
@@ -421,6 +423,7 @@ class CaptureCoordinator:
             if not self.ble.is_active:
                 self._ble_ready.clear()
                 self._ble_control_state = "OFFLINE"
+                self._ble_control_result = "OFFLINE"
                 self._ble_time_sync_state = "STOPPED"
                 self.phase = "idle"
                 self.message = "Mode2 授时未运行"
@@ -447,6 +450,7 @@ class CaptureCoordinator:
             with self._lock:
                 self._node_states.clear()
                 self._ble_control_state = "OFFLINE"
+                self._ble_control_result = "OFFLINE"
                 self._ble_time_sync_state = "STOPPED"
                 self._coordinator_serial = "未连接"
                 self._utc_map_state = "UNKNOWN"
@@ -570,16 +574,19 @@ class CaptureCoordinator:
                 return
             with self._lock:
                 self._ble_control_state = "STARTING"
+                self._ble_control_result = "STARTING"
             self.ble_control_logs.append(
                 "[UI -> Mode2] 1 / START（等待全部 wearable ARMED）", "system"
             )
             if not self.ble.is_active or not self.ble.send_line("1"):
                 with self._lock:
                     self._ble_control_state = "ERROR"
+                    self._ble_control_result = "ERROR"
                 raise RuntimeError("无法向 Mode2 控制器发送键盘事件 1")
             if not self._ble_start_result.wait(45):
                 with self._lock:
                     self._ble_control_state = "ERROR"
+                    self._ble_control_result = "ERROR"
                 raise RuntimeError("等待 Mode2 START 结果超时")
             if not self._ble_start_ok:
                 raise RuntimeError("Mode2 START 未成功，详情见录制控制日志")
@@ -628,6 +635,7 @@ class CaptureCoordinator:
         if self.ble.is_active and self._ble_ready.is_set():
             with self._lock:
                 self._ble_control_state = "STOPPING"
+                self._ble_control_result = "STOPPING"
             self.ble_control_logs.append(
                 "[UI -> Mode2] 0 / STOP（等待中控确认）", "system"
             )
@@ -644,6 +652,9 @@ class CaptureCoordinator:
                     "ble_ready", "本轮录制已停止并保存；Mode2 继续持续授时"
                 )
             else:
+                with self._lock:
+                    self._ble_control_state = "ERROR"
+                    self._ble_control_result = "ERROR"
                 self._set_phase(
                     "ble_ready",
                     "Tracker 已保存，但未确认 Mode2 STOP 成功；请检查录制控制日志",
@@ -695,6 +706,7 @@ class CaptureCoordinator:
                 self._coordinator_name = ready_match.group("name").strip()
                 self._coordinator_serial = ready_match.group("serial").strip()
                 self._ble_control_state = "IDLE"
+                self._ble_control_result = "STANDBY"
                 self._ble_time_sync_state = "SYNCED"
             self._ble_ready.set()
 
@@ -728,6 +740,7 @@ class CaptureCoordinator:
         if "[START] ALL WEARABLE NODES ARMED" in upper:
             with self._lock:
                 self._ble_control_state = "RUNNING"
+                self._ble_control_result = "START_OK"
                 self._ble_start_ok = True
             self._ble_start_result.set()
         elif any(
@@ -741,17 +754,20 @@ class CaptureCoordinator:
         ):
             with self._lock:
                 self._ble_control_state = "ERROR"
+                self._ble_control_result = "ERROR"
                 self._ble_start_ok = False
             self._ble_start_result.set()
 
         if "[STOP]" in upper:
             with self._lock:
                 self._ble_control_state = "IDLE"
+                self._ble_control_result = "STOP_OK"
                 self._ble_stop_ok = True
             self._ble_stop_result.set()
         elif "STOP DID NOT RECEIVE" in upper:
             with self._lock:
                 self._ble_control_state = "ERROR"
+                self._ble_control_result = "ERROR"
                 self._ble_stop_ok = False
             self._ble_stop_result.set()
 
@@ -765,6 +781,7 @@ class CaptureCoordinator:
             with self._lock:
                 self._node_states.clear()
                 self._ble_control_state = "OFFLINE"
+                self._ble_control_result = "OFFLINE"
                 self._ble_time_sync_state = "STOPPED"
                 self._ble_start_ok = False
                 self._ble_stop_ok = False
@@ -837,6 +854,7 @@ class CaptureCoordinator:
             self._ble_stop_ok = None
             with self._lock:
                 self._ble_control_state = "STOPPING"
+                self._ble_control_result = "STOPPING"
             self.ble_control_logs.append(
                 "[UI -> Mode2] Tracker 异常退出，发送 0 / STOP", "system"
             )
@@ -849,6 +867,9 @@ class CaptureCoordinator:
                     "VIVE exited unexpectedly",
                 )
             else:
+                with self._lock:
+                    self._ble_control_state = "ERROR"
+                    self._ble_control_result = "ERROR"
                 self._set_phase(
                     "ble_ready",
                     "Tracker 异常退出；未确认 Mode2 STOP，请检查录制控制日志",
@@ -900,6 +921,7 @@ class CaptureCoordinator:
                     "serial": self._coordinator_serial,
                     "time_sync_state": self._ble_time_sync_state,
                     "control_state": self._ble_control_state,
+                    "control_result": self._ble_control_result,
                     "utc_map_state": self._utc_map_state,
                     "nodes": [
                         {
