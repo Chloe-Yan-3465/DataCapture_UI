@@ -220,6 +220,37 @@ class SplitBleAndCaptureLifecycleTests(unittest.TestCase):
 
 
 class Mode2StateAndLogTests(unittest.TestCase):
+    def test_stop_frame_reports_are_grouped_by_episode_and_node(self) -> None:
+        coordinator = CaptureCoordinator()
+        for node_id in (1, 2, 3):
+            coordinator._on_line(
+                "ble",
+                f"ESP32> node={node_id} connected=1 state=RUNNING "
+                "session=42 error=0x00000000",
+            )
+        coordinator._wait_for_frame_report()
+
+        coordinator._on_line(
+            "ble", "ESP32> STOP_FRAME session=42 node=1 frames=18000"
+        )
+        partial = coordinator.state()["mode2"]["frame_report"]
+        self.assertEqual(partial["status"], "receiving")
+        self.assertEqual(partial["expected_nodes"], ["1", "2", "3"])
+
+        coordinator._on_line(
+            "ble", "ESP32> STOP_FRAME session=42 node=2 frames=17998"
+        )
+        coordinator._on_line(
+            "ble", "ESP32> STOP_FRAME session=42 node=3 frames=0"
+        )
+        report = coordinator.state()["mode2"]["frame_report"]
+        self.assertEqual(report["status"], "complete")
+        self.assertEqual(report["session_id"], "42")
+        self.assertEqual(
+            [(item["node_id"], item["frames"]) for item in report["nodes"]],
+            [("1", 18000), ("2", 17998), ("3", 0)],
+        )
+
     def test_mode2_lines_drive_status_and_separate_log_streams(self) -> None:
         coordinator = CaptureCoordinator()
         coordinator._on_line(

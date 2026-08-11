@@ -30,7 +30,7 @@ body {
 h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); letter-spacing: -.02em; }
 .clock { color: #b8c6d6; font: 600 20px/1 Consolas, monospace; letter-spacing: .06em; }
 
-.control-card, .terminal-card {
+.control-card, .terminal-card, .frame-report-card {
   border: 1px solid var(--border);
   border-radius: 14px;
   background: rgba(17, 24, 33, .93);
@@ -76,6 +76,23 @@ h1 { margin: 0; font-size: clamp(26px, 3vw, 38px); letter-spacing: -.02em; }
 .mode2-dot.running { background: var(--green); box-shadow: 0 0 0 3px rgba(59,209,139,.12); }
 .mode2-dot.error { background: var(--red); box-shadow: 0 0 0 3px rgba(255,107,107,.12); }
 
+.frame-report-card { margin-top: 16px; padding: 17px 20px; }
+.frame-report-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.frame-report-heading h2 { margin: 3px 0 0; font-size: 17px; }
+.frame-report-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 13px; }
+.frame-report-empty { grid-column: 1 / -1; padding: 17px; border: 1px dashed #34455b; border-radius: 9px; color: var(--muted); text-align: center; font-size: 12px; }
+.frame-node { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 8px; padding: 13px 14px; border: 1px solid var(--border); border-radius: 9px; background: #0d141c; }
+.frame-node.ok { border-color: rgba(59,209,139,.42); }
+.frame-node.pending { border-color: rgba(241,184,75,.45); }
+.frame-node.error { border-color: rgba(255,107,107,.55); background: rgba(255,107,107,.07); }
+.frame-node-name, .frame-node-unit { color: var(--muted); font-size: 11px; }
+.frame-node strong { color: var(--green); font: 700 24px/1 Consolas, monospace; }
+.frame-node.pending strong { color: var(--amber); font-size: 14px; }
+.frame-node.error strong { color: var(--red); }
+.frame-report-badge.waiting, .frame-report-badge.receiving { border-color: rgba(241,184,75,.4); color: var(--amber); }
+.frame-report-badge.recording { border-color: rgba(59,209,139,.38); color: var(--green); }
+.frame-report-badge.complete { border-color: rgba(76,159,254,.38); color: #86bdff; }
+
 .terminal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
 .terminal-card { min-width: 0; overflow: hidden; }
 .terminal-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 17px; border-bottom: 1px solid var(--border); background: var(--panel-2); }
@@ -106,6 +123,7 @@ footer { display: flex; justify-content: space-between; gap: 20px; padding: 13px
   .mode2-bar { align-items: flex-start; flex-direction: column; }
   .node-list { justify-content: flex-start; flex-basis: auto; }
   .terminal-grid { grid-template-columns: 1fr; }
+  .frame-report-list { grid-template-columns: 1fr; }
   .terminal { height: 400px; }
 }
 

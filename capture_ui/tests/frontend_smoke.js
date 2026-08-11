@@ -53,6 +53,12 @@ global.fetch = async (url) => ({
         nodes: [
           { node_id: "1", connected: true, state: "IDLE", details: "session=0", updated_at: "2026-08-08T12:00:00+08:00" },
         ],
+        frame_report: {
+          status: "complete",
+          session_id: "42",
+          expected_nodes: ["1"],
+          nodes: [{ node_id: "1", frames: 18000, updated_at: "2026-08-08T12:10:00+08:00" }],
+        },
       },
       controls: {
         can_start_ble: true,
@@ -98,6 +104,13 @@ setTimeout(() => {
   }
   if (elements.get("control-result").textContent !== "待机") {
     throw new Error("Mode2 control result badge was not rendered");
+  }
+  if (elements.get("frame-report-status").textContent !== "Episode 42 · 回传完成") {
+    throw new Error("Episode frame report status was not rendered");
+  }
+  const frameList = elements.get("frame-report-list");
+  if (!frameList || frameList.children.length !== 1) {
+    throw new Error("Episode frame count was not rendered");
   }
   process.stdout.write("frontend runtime smoke: OK\n");
 }, 20);

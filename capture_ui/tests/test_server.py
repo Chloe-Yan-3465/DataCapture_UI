@@ -29,6 +29,7 @@ class ServerRuntimeTests(unittest.TestCase):
                 self.assertIn("联合数据采集", page)
                 self.assertIn("bind-button", page)
                 self.assertIn("scan-button", page)
+                self.assertIn("frame-report-list", page)
             with urlopen(base_url + "/api/state", timeout=5) as response:
                 state = json.load(response)
                 self.assertEqual(state["phase"], "idle")
