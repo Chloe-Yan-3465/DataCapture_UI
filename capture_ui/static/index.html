@@ -51,6 +51,19 @@
       <div id="notice" class="notice" hidden></div>
     </section>
 
+    <section class="frame-report-card" aria-live="polite">
+      <div class="frame-report-heading">
+        <div>
+          <span class="mode2-title">NanoPi 落盘确认</span>
+          <h2>最近一条 Episode 帧数</h2>
+        </div>
+        <span id="frame-report-status" class="pill">尚无数据</span>
+      </div>
+      <div id="frame-report-list" class="frame-report-list">
+        <span class="frame-report-empty">STOP 后将在这里显示各节点实际落盘帧数</span>
+      </div>
+    </section>
+
     <section class="terminal-grid">
       <article class="terminal-card">
         <header class="terminal-header">
@@ -91,6 +104,6 @@
       <button id="clear-button" class="text-button">清空屏幕日志</button>
     </footer>
   </main>
-  <script src="/app.js?v=20260809-manual-scan"></script>
+  <script src="/app.js?v=20260811-stop-frames"></script>
 </body>
 </html>

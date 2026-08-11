@@ -130,6 +130,53 @@ function renderMode2(mode2 = {}) {
   }));
 }
 
+function renderFrameReport(report = {}) {
+  const status = report.status || "idle";
+  const session = report.session_id;
+  const expected = (report.expected_nodes || []).map(String);
+  const returned = new Map((report.nodes || []).map((item) => [String(item.node_id), item]));
+  const nodeIds = [...new Set([...expected, ...returned.keys()])].sort((a, b) => Number(a) - Number(b));
+  const labels = { "1": "头部", "2": "左手", "3": "右手" };
+  const statusLabels = {
+    idle: "尚无数据",
+    recording: "本轮采集中",
+    waiting: "等待 NanoPi 回传",
+    receiving: "部分节点已回传",
+    complete: `Episode ${session || "-"} · 回传完成`,
+  };
+  const badge = byId("frame-report-status");
+  badge.textContent = statusLabels[status] || status;
+  badge.className = `pill frame-report-badge ${status}`;
+
+  const list = byId("frame-report-list");
+  if (!nodeIds.length) {
+    const empty = document.createElement("span");
+    empty.className = "frame-report-empty";
+    empty.textContent = status === "recording"
+      ? "本轮正在采集，STOP 后显示实际落盘帧数"
+      : "STOP 后将在这里显示各节点实际落盘帧数";
+    list.replaceChildren(empty);
+    return;
+  }
+
+  list.replaceChildren(...nodeIds.map((nodeId) => {
+    const item = returned.get(nodeId);
+    const frames = item ? Number(item.frames) : null;
+    const card = document.createElement("div");
+    card.className = `frame-node ${frames === null ? "pending" : frames <= 0 ? "error" : "ok"}`;
+    const name = document.createElement("span");
+    name.className = "frame-node-name";
+    name.textContent = `Node ${nodeId}${labels[nodeId] ? ` · ${labels[nodeId]}` : ""}`;
+    const value = document.createElement("strong");
+    value.textContent = frames === null ? "等待回传" : frames < 0 ? "不可用" : frames.toLocaleString("zh-CN");
+    const unit = document.createElement("span");
+    unit.className = "frame-node-unit";
+    unit.textContent = frames === null ? "" : "帧";
+    card.append(name, value, unit);
+    return card;
+  }));
+}
+
 function renderState(state) {
   byId("phase-label").textContent = phaseLabels[state.phase] || state.phase;
   byId("phase-message").textContent = state.message;
@@ -156,6 +203,7 @@ function renderState(state) {
   renderProcess("ble", state.processes.ble);
   renderProcess("vive", state.processes.vive);
   renderMode2(state.mode2);
+  renderFrameReport(state.mode2.frame_report);
   appendLogs("ble-timesync", state.logs.ble_timesync.items);
   appendLogs("ble-control", state.logs.ble_control.items);
   appendLogs("vive", state.logs.vive.items);

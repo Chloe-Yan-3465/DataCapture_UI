@@ -28,6 +28,11 @@ MODE2_NODE_PATTERN = re.compile(
 MODE2_READY_PATTERN = re.compile(
     r"\[READY\]\s+(?P<name>.+?)\s+via\s+(?P<serial>\S+)", re.IGNORECASE
 )
+MODE2_STOP_FRAME_PATTERN = re.compile(
+    r"\bSTOP_FRAME\s+session=(?P<session>\d+)\s+"
+    r"node=(?P<node_id>\d+)\s+frames=(?P<frames>-?\d+)\b",
+    re.IGNORECASE,
+)
 
 BLE_CONTROL_TOKENS = (
     "[CONTROL]",
@@ -42,6 +47,7 @@ BLE_CONTROL_TOKENS = (
     "STOP DID NOT RECEIVE",
     "START SCHEDULED",
     "STOP SCHEDULED",
+    "STOP_FRAME",
     " ARMED ",
     "NO ACTIVE SESSION",
     "SCAN ",
@@ -301,6 +307,10 @@ class CaptureCoordinator:
         self._coordinator_serial = "未连接"
         self._utc_map_state = "UNKNOWN"
         self._node_states: dict[str, dict[str, object]] = {}
+        self._frame_report_status = "idle"
+        self._frame_report_session: str | None = None
+        self._frame_report_expected_nodes: set[str] = set()
+        self._frame_report_nodes: dict[str, dict[str, object]] = {}
         self.ble = ProjectProcess("ble", "BLE-TimeSync", self._on_line, self._on_exit)
         self.vive = ProjectProcess(
             "vive", "VIVE Tracker", self._on_line, self._on_exit
@@ -351,6 +361,28 @@ class CaptureCoordinator:
             self.phase = phase
             self.message = message
             self.error = error
+
+    def _start_frame_report(self) -> None:
+        with self._lock:
+            self._frame_report_status = "recording"
+            self._frame_report_session = None
+            self._frame_report_expected_nodes = {
+                node_id
+                for node_id, item in self._node_states.items()
+                if item["connected"]
+            }
+            self._frame_report_nodes.clear()
+
+    def _wait_for_frame_report(self) -> None:
+        with self._lock:
+            self._frame_report_status = "waiting"
+            self._frame_report_session = None
+            self._frame_report_expected_nodes = {
+                node_id
+                for node_id, item in self._node_states.items()
+                if item["connected"]
+            }
+            self._frame_report_nodes.clear()
 
     def _require_checks(self, names: set[str]) -> None:
         checks = self.preflight()["checks"]
@@ -636,6 +668,7 @@ class CaptureCoordinator:
             self.phase = "stopping_capture"
             self.message = "正在发送 Mode2 0 / STOP，并停止保存 Tracker 数据…"
             self.error = None
+        self._wait_for_frame_report()
         threading.Thread(
             target=self._stop_capture_worker,
             name="capture-stop-sequence",
@@ -758,6 +791,7 @@ class CaptureCoordinator:
                 self._ble_control_state = "RUNNING"
                 self._ble_control_result = "START_OK"
                 self._ble_start_ok = True
+            self._start_frame_report()
             self._ble_start_result.set()
         elif any(
             marker in upper
@@ -786,6 +820,27 @@ class CaptureCoordinator:
                 self._ble_control_result = "ERROR"
                 self._ble_stop_ok = False
             self._ble_stop_result.set()
+
+        frame_match = MODE2_STOP_FRAME_PATTERN.search(line)
+        if frame_match:
+            session = frame_match.group("session")
+            node_id = frame_match.group("node_id")
+            frames = int(frame_match.group("frames"))
+            with self._lock:
+                if self._frame_report_session not in {None, session}:
+                    self._frame_report_nodes.clear()
+                self._frame_report_session = session
+                self._frame_report_nodes[node_id] = {
+                    "frames": frames,
+                    "updated_at": now,
+                }
+                received_nodes = set(self._frame_report_nodes)
+                expected_nodes = self._frame_report_expected_nodes
+                self._frame_report_status = (
+                    "complete"
+                    if not expected_nodes or expected_nodes <= received_nodes
+                    else "receiving"
+                )
 
     def _on_exit(self, key: str, exit_code: int) -> None:
         if self._shutting_down:
@@ -866,6 +921,7 @@ class CaptureCoordinator:
 
     def _finish_after_unexpected_vive_exit(self) -> None:
         if self.ble.is_active and self._ble_ready.is_set():
+            self._wait_for_frame_report()
             self._ble_stop_result.clear()
             self._ble_stop_ok = None
             with self._lock:
@@ -952,6 +1008,24 @@ class CaptureCoordinator:
                             self._node_states.items(), key=lambda pair: int(pair[0])
                         )
                     ],
+                    "frame_report": {
+                        "status": self._frame_report_status,
+                        "session_id": self._frame_report_session,
+                        "expected_nodes": sorted(
+                            self._frame_report_expected_nodes, key=int
+                        ),
+                        "nodes": [
+                            {
+                                "node_id": node_id,
+                                "frames": item["frames"],
+                                "updated_at": item["updated_at"],
+                            }
+                            for node_id, item in sorted(
+                                self._frame_report_nodes.items(),
+                                key=lambda pair: int(pair[0]),
+                            )
+                        ],
+                    },
                 },
                 "controls": controls,
                 "processes": {
