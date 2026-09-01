@@ -1,11 +1,12 @@
 const phaseLabels = {
   idle: "准备就绪",
-  binding_trackers: "绑定 Tracker 角色中",
-  stopping_binding: "正在取消角色绑定",
-  starting_ble: "BLE 启动中",
-  ble_ready: "BLE 持续授时中",
+  starting_ble: "授时与数据流启动中",
+  ble_ready: "持续授时中",
   stopping_ble: "BLE 停止中",
-  starting_tracker: "Tracker 启动中",
+  starting_streams: "数据流启动中",
+  streams_ready: "授时与数据流就绪",
+  stopping_streams: "数据流停止中",
+  starting_capture: "联合录制启动中",
   recording: "正在录制",
   stopping_capture: "正在停止录制",
   error: "录制异常",
@@ -19,18 +20,22 @@ const processLabels = {
   error: "异常退出",
 };
 
-let lastSeq = { ble_timesync: 0, ble_control: 0, vive: 0 };
+let lastSeq = { ble_timesync: 0, ble_control: 0, manus: 0 };
 let pollBusy = false;
 
 const byId = (id) => document.getElementById(id);
 const bleButton = byId("ble-button");
+const streamsButton = byId("streams-button");
 const scanButton = byId("scan-button");
 const startButton = byId("start-button");
-const bindButton = byId("bind-button");
 const stopButton = byId("stop-button");
-const rateInput = byId("tracker-rate");
 const notice = byId("notice");
-let previousPhase = null;
+const taskNameSelect = byId("task-name-select");
+const complexLevelSelect = byId("complex-level-select");
+const customTaskControl = byId("custom-task-control");
+const customTaskInput = byId("custom-task-input");
+const addTaskButton = byId("add-task-button");
+let captureOptionsSignature = "";
 
 function showNotice(message) {
   notice.textContent = message;
@@ -177,50 +182,114 @@ function renderFrameReport(report = {}) {
   }));
 }
 
+function renderCaptureOptions(options = {}, phase = "idle") {
+  const taskNames = options.task_names || [];
+  const levels = options.complex_levels || [];
+  const signature = JSON.stringify([taskNames, levels]);
+  if (signature !== captureOptionsSignature) {
+    const previousTask = taskNameSelect.value;
+    const previousLevel = complexLevelSelect.value;
+    const taskItems = taskNames.map((name) => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      return option;
+    });
+    const addOption = document.createElement("option");
+    addOption.value = "__add__";
+    addOption.textContent = "+ 添加任务";
+    taskNameSelect.replaceChildren(...taskItems, addOption);
+    complexLevelSelect.replaceChildren(...levels.map((level) => {
+      const option = document.createElement("option");
+      option.value = level;
+      option.textContent = level;
+      return option;
+    }));
+    taskNameSelect.value = taskNames.includes(previousTask)
+      ? previousTask
+      : options.selected_task_name || taskNames[0] || "";
+    complexLevelSelect.value = levels.includes(previousLevel)
+      ? previousLevel
+      : options.selected_complex_level || levels[0] || "";
+    captureOptionsSignature = signature;
+  }
+  const locked = ["starting_capture", "recording", "stopping_capture"].includes(phase);
+  taskNameSelect.disabled = locked;
+  complexLevelSelect.disabled = locked;
+  customTaskInput.disabled = locked;
+  addTaskButton.disabled = locked;
+}
+
+function renderTrackers(trackers = []) {
+  const list = byId("tracker-status-list");
+  if (!trackers.length) {
+    const empty = document.createElement("span");
+    empty.className = "tracker-empty";
+    empty.textContent = "数据流启动后显示 Tracker 状态";
+    list.replaceChildren(empty);
+    return;
+  }
+  list.replaceChildren(...trackers.map((tracker) => {
+    const healthy = Boolean(tracker.connected && tracker.tracking);
+    const chip = document.createElement("span");
+    chip.className = `tracker-chip ${healthy ? "ok" : "lost"}`;
+    chip.title = `${tracker.serial} · ${tracker.connected ? "在线" : "掉线"} · ${tracker.tracking ? "追踪正常" : "追踪丢失"} · 更新于 ${tracker.updated_at}`;
+    const dot = document.createElement("i");
+    dot.className = "tracker-dot";
+    chip.append(dot, document.createTextNode(`${tracker.role} · ${healthy ? "正常" : "丢失"}`));
+    return chip;
+  }));
+}
+
 function renderState(state) {
   byId("phase-label").textContent = phaseLabels[state.phase] || state.phase;
   byId("phase-message").textContent = state.message;
   const dot = byId("phase-dot");
-  const preparingPhases = ["binding_trackers", "stopping_binding", "starting_ble", "stopping_ble", "starting_tracker", "stopping_capture"];
+  const preparingPhases = ["starting_ble", "stopping_ble", "starting_streams", "stopping_streams", "starting_capture", "stopping_capture"];
   const dotPhase = preparingPhases.includes(state.phase)
     ? "preparing"
-    : state.phase === "ble_ready"
+    : ["ble_ready", "streams_ready"].includes(state.phase)
       ? "ready"
       : state.phase;
   dot.className = `status-dot ${dotPhase}`;
   const controls = state.controls;
   const bleRunning = Boolean(state.processes.ble.pid);
-  bleButton.textContent = bleRunning ? "停止常驻授时" : "启动常驻授时";
+  bleButton.textContent = bleRunning ? "停止常驻授时" : "开启授时 + 数据流";
   bleButton.disabled = bleRunning ? !controls.can_stop_ble : !controls.can_start_ble;
+  const streamsRunning = Boolean(state.processes.manus.pid || state.processes.manus_client.pid);
+  streamsButton.textContent = streamsRunning
+    ? "停止 Tracker & MANUS 数据流"
+    : "重新启动 Tracker & MANUS 数据流";
+  streamsButton.disabled = streamsRunning ? !controls.can_stop_streams : !controls.can_start_streams;
   scanButton.disabled = !controls.can_scan_wearables;
-  bindButton.textContent = controls.can_cancel_binding ? "取消角色绑定" : "绑定 Tracker 角色";
-  bindButton.disabled = !(controls.can_bind_trackers || controls.can_cancel_binding);
   startButton.disabled = !controls.can_start_capture;
   stopButton.disabled = !controls.can_stop_capture;
-  rateInput.disabled = ["starting_tracker", "recording", "stopping_capture"].includes(state.phase);
   if (state.error) showNotice(state.message);
   else if (!notice.dataset.manual) showNotice("");
   renderProcess("ble", state.processes.ble);
-  renderProcess("vive", state.processes.vive);
+  renderProcess("manus", state.processes.manus);
+  renderProcess("manus-client", state.processes.manus_client);
   renderMode2(state.mode2);
   renderFrameReport(state.mode2.frame_report);
+  renderCaptureOptions(state.capture_options, state.phase);
+  startButton.disabled = !controls.can_start_capture || taskNameSelect.value === "__add__";
+  renderTrackers(state.trackers);
   appendLogs("ble-timesync", state.logs.ble_timesync.items);
   appendLogs("ble-control", state.logs.ble_control.items);
-  appendLogs("vive", state.logs.vive.items);
+  appendLogs("manus", state.logs.manus.items);
   lastSeq.ble_timesync = state.logs.ble_timesync.last_seq;
   lastSeq.ble_control = state.logs.ble_control.last_seq;
-  lastSeq.vive = state.logs.vive.last_seq;
-  byId("output-path").textContent = state.vive_output_dir
-    ? `VIVE 输出目录：${state.vive_output_dir}`
-    : "VIVE 输出目录：尚未开始";
-  previousPhase = state.phase;
+  lastSeq.manus = state.logs.manus.last_seq;
+  byId("output-path").textContent = state.capture_output_dir
+    ? `联合采集输出目录：${state.capture_output_dir}`
+    : "联合采集输出目录：尚未开始";
 }
 
 async function pollState() {
   if (pollBusy) return;
   pollBusy = true;
   try {
-    const state = await request(`/api/state?after_ble_timesync=${lastSeq.ble_timesync}&after_ble_control=${lastSeq.ble_control}&after_vive=${lastSeq.vive}`);
+    const state = await request(`/api/state?after_ble_timesync=${lastSeq.ble_timesync}&after_ble_control=${lastSeq.ble_control}&after_manus=${lastSeq.manus}`);
     try {
       renderState(state);
     } catch (error) {
@@ -240,7 +309,10 @@ startButton.addEventListener("click", async () => {
   try {
     await request("/api/capture/start", {
       method: "POST",
-      body: JSON.stringify({ tracker_rate: Number(rateInput.value) }),
+      body: JSON.stringify({
+        task_name: taskNameSelect.value,
+        complex_level: complexLevelSelect.value,
+      }),
     });
     await pollState();
   } catch (error) {
@@ -249,16 +321,26 @@ startButton.addEventListener("click", async () => {
   }
 });
 
-bindButton.addEventListener("click", async () => {
+taskNameSelect.addEventListener("change", () => {
+  const adding = taskNameSelect.value === "__add__";
+  customTaskControl.hidden = !adding;
+  if (adding) startButton.disabled = true;
+  if (adding) customTaskInput.focus();
+});
+
+addTaskButton.addEventListener("click", async () => {
   showNotice("");
   delete notice.dataset.manual;
   try {
-    const path = previousPhase === "binding_trackers" ? "/api/cancel-bind" : "/api/bind-trackers";
-    await request(path, {
+    const result = await request("/api/task-options", {
       method: "POST",
-      body: JSON.stringify({}),
+      body: JSON.stringify({ task_name: customTaskInput.value }),
     });
+    captureOptionsSignature = "";
     await pollState();
+    taskNameSelect.value = result.task_name;
+    customTaskInput.value = "";
+    customTaskControl.hidden = true;
   } catch (error) {
     notice.dataset.manual = "true";
     showNotice(error.message);
@@ -271,6 +353,22 @@ bleButton.addEventListener("click", async () => {
   try {
     const path = bleButton.textContent.startsWith("停止") ? "/api/ble/stop" : "/api/ble/start";
     await request(path, { method: "POST", body: "{}" });
+    await pollState();
+  } catch (error) {
+    notice.dataset.manual = "true";
+    showNotice(error.message);
+  }
+});
+
+streamsButton.addEventListener("click", async () => {
+  showNotice("");
+  delete notice.dataset.manual;
+  try {
+    const running = streamsButton.textContent.startsWith("停止");
+    await request(running ? "/api/streams/stop" : "/api/streams/start", {
+      method: "POST",
+      body: "{}",
+    });
     await pollState();
   } catch (error) {
     notice.dataset.manual = "true";
@@ -307,8 +405,8 @@ byId("clear-button").addEventListener("click", async () => {
     await request("/api/clear-logs", { method: "POST", body: "{}" });
     byId("ble-timesync-log").replaceChildren();
     byId("ble-control-log").replaceChildren();
-    byId("vive-log").replaceChildren();
-    lastSeq = { ble_timesync: 0, ble_control: 0, vive: 0 };
+    byId("manus-log").replaceChildren();
+    lastSeq = { ble_timesync: 0, ble_control: 0, manus: 0 };
   } catch (error) {
     showNotice(error.message);
   }

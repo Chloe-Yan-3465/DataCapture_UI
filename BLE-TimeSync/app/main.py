@@ -172,6 +172,14 @@ async def _stdin_control_loop(
             await manager.scan()
         elif normalized in {"1", "start"}:
             await manager.start_all()
+        elif normalized.startswith("start "):
+            parts = command.split()
+            if len(parts) != 3:
+                logger.warning(
+                    "START metadata usage: start <task_name> <complex_level>"
+                )
+                continue
+            await manager.start_all(parts[1], parts[2])
         elif normalized in {"0", "stop"}:
             await manager.stop_all()
         elif normalized in {"q", "quit", "exit"}:

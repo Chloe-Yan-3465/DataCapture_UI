@@ -24,15 +24,26 @@
         </div>
       </div>
       <div class="actions">
-        <button id="bind-button" class="button secondary">绑定 Tracker 角色</button>
-        <button id="ble-button" class="button secondary">启动常驻授时</button>
+        <button id="ble-button" class="button secondary">开启授时 + 数据流</button>
+        <button id="streams-button" class="button danger" disabled>停止 Tracker &amp; MANUS 数据流</button>
         <button id="scan-button" class="button secondary" disabled>扫描 wearable</button>
-        <label class="rate-field">
-          <span>Tracker 采样率</span>
-          <span class="input-wrap"><input id="tracker-rate" type="number" min="1" max="1000" step="1" value="120"><b>Hz</b></span>
-        </label>
-        <button id="start-button" class="button primary" disabled>开始录制</button>
+        <button id="start-button" class="button primary" disabled>开始联合录制</button>
         <button id="stop-button" class="button danger" disabled>停止录制</button>
+      </div>
+      <div class="capture-settings">
+        <label>
+          <span>Task name</span>
+          <select id="task-name-select"></select>
+        </label>
+        <div id="custom-task-control" class="custom-task-control" hidden>
+          <input id="custom-task-input" type="text" maxlength="31"
+                 pattern="[A-Za-z0-9_-]+" placeholder="输入新 task_name">
+          <button id="add-task-button" class="button secondary" type="button">添加</button>
+        </div>
+        <label>
+          <span>Complex level</span>
+          <select id="complex-level-select"></select>
+        </label>
       </div>
       <div class="mode2-bar">
         <div class="coordinator-identity">
@@ -46,6 +57,12 @@
         </div>
         <div id="node-list" class="node-list">
           <span class="node-empty">尚未收到 wearable 节点状态</span>
+        </div>
+      </div>
+      <div class="tracker-bar">
+        <span class="mode2-title">Tracker 追踪状态</span>
+        <div id="tracker-status-list" class="tracker-status-list">
+          <span class="tracker-empty">数据流启动后显示 Tracker 状态</span>
         </div>
       </div>
       <div id="notice" class="notice" hidden></div>
@@ -90,20 +107,23 @@
       <article class="terminal-card">
         <header class="terminal-header">
           <div>
-            <h2>VIVE Tracker</h2>
-            <p>OpenXR 位姿采集与落盘状态</p>
+            <h2>MANUS + Vive Tracker</h2>
+            <p>常驻 RawSkeleton、OpenVR Tracker 数据流与 episode 写盘状态</p>
           </div>
-          <span id="vive-status" class="pill stopped">未运行</span>
+          <div class="process-pills">
+            <span id="manus-status" class="pill stopped">录制器未运行</span>
+            <span id="manus-client-status" class="pill stopped">SDK 客户端未运行</span>
+          </div>
         </header>
-        <div id="vive-log" class="terminal" role="log" aria-live="polite"></div>
+        <div id="manus-log" class="terminal" role="log" aria-live="polite"></div>
       </article>
     </section>
 
     <footer>
-      <span id="output-path">VIVE 输出目录：尚未开始</span>
+      <span id="output-path">联合采集输出目录：尚未开始</span>
       <button id="clear-button" class="text-button">清空屏幕日志</button>
     </footer>
   </main>
-  <script src="/app.js?v=20260811-stop-frames"></script>
+  <script src="/app.js?v=20260901-persistent-vr-streams"></script>
 </body>
 </html>

@@ -75,8 +75,34 @@ def encode_time_set(
     ).encode("ascii")
 
 
-def encode_start() -> bytes:
-    return b"START\n"
+PATH_SEGMENT_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _validate_path_segment(value: str, name: str, maximum: int) -> str:
+    if not isinstance(value, str) or not value or len(value) > maximum:
+        raise CoordinatorProtocolError(
+            f"{name} must contain 1..{maximum} characters"
+        )
+    if PATH_SEGMENT_RE.fullmatch(value) is None:
+        raise CoordinatorProtocolError(
+            f"{name} may contain only A-Z, a-z, 0-9, '_' or '-'"
+        )
+    return value
+
+
+def encode_start(
+    task_name: str | None = None,
+    complex_level: str | None = None,
+) -> bytes:
+    if task_name is None and complex_level is None:
+        return b"START\n"
+    if task_name is None or complex_level is None:
+        raise CoordinatorProtocolError(
+            "task_name and complex_level must be provided together"
+        )
+    task = _validate_path_segment(task_name, "task_name", 31)
+    level = _validate_path_segment(complex_level, "complex_level", 15)
+    return f"START TASK={task} LEVEL={level}\n".encode("ascii")
 
 
 def encode_stop() -> bytes:

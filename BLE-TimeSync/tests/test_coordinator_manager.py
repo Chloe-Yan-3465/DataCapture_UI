@@ -32,7 +32,7 @@ class _FakeClient:
 
     async def send(self, payload: bytes) -> None:
         self.payloads.append(payload)
-        if payload == b"START\n":
+        if payload.startswith(b"START"):
             self.lines.put_nowait("session 123 planned; common epoch=1us, waiting for 2 Neo ACK(s)")
             self.lines.put_nowait("session 123 ARMED on connected nodes")
         elif payload == b"STOP\n":
@@ -77,7 +77,7 @@ class CoordinatorManagerTests(unittest.IsolatedAsyncioTestCase):
         await manager.close()
         self.assertFalse(fake.connected)
 
-    async def test_scan_start_and_stop_use_bare_commands_without_session_ids(self) -> None:
+    async def test_scan_start_and_stop_send_capture_metadata_without_session_ids(self) -> None:
         manager = CoordinatorManager(
             AppConfig.load(DEFAULT_CONFIG_PATH),
             _MemoryLog(),  # type: ignore[arg-type]
@@ -92,11 +92,14 @@ class CoordinatorManagerTests(unittest.IsolatedAsyncioTestCase):
             "app.coordinator_manager.PRE_START_TIME_APPLY_GUARD_SECONDS", 0.0
         ):
             await manager.scan()
-            self.assertTrue(await manager.start_all())
+            self.assertTrue(await manager.start_all("limited_space", "L1"))
         self.assertEqual(manager.control_state, "RUNNING")
         self.assertTrue(await manager.stop_all())
         self.assertEqual(manager.control_state, "IDLE")
-        self.assertEqual(fake.payloads, [b"SCAN\n", b"START\n", b"STOP\n"])
+        self.assertEqual(
+            fake.payloads,
+            [b"SCAN\n", b"START TASK=limited_space LEVEL=L1\n", b"STOP\n"],
+        )
         self.assertEqual(fake_engine.calls, 1)
 
     async def test_failed_pre_start_sync_never_sends_start(self) -> None:

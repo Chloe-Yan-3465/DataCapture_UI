@@ -13,6 +13,7 @@ UI_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(UI_DIR))
 
 from process_manager import CaptureCoordinator, LogStore, ProjectProcess  # noqa: E402
+import process_manager as process_manager_module  # noqa: E402
 
 
 class FakeLogs:
@@ -58,11 +59,13 @@ class FakeProjectProcess:
         if not self.active:
             return False
         self.commands.append(command)
-        if command == "quit" or (self.key == "vive" and command == "stop"):
+        if command == "quit" or (self.key == "manus" and command == "shutdown"):
             self.active = False
         return True
 
     def wait(self, timeout: float) -> bool:
+        if self.key == "manus_client":
+            self.active = False
         return not self.active
 
     def force_stop(self) -> None:
@@ -136,33 +139,13 @@ class ProjectProcessTests(unittest.TestCase):
         self.assertEqual(worker.exit_code, 0)
 
 
-class TrackerRoleBindingTests(unittest.TestCase):
-    def test_binding_uses_original_powershell_entry_non_interactively(self) -> None:
-        coordinator = CaptureCoordinator()
-        with patch.object(coordinator.vive, "start") as start:
-            coordinator.bind_tracker_roles()
-            deadline = time.monotonic() + 3
-            while not start.called and time.monotonic() < deadline:
-                time.sleep(0.01)
-            self.assertTrue(start.called)
-
-        command, working_directory = start.call_args.args
-        self.assertEqual(command[0], "powershell.exe")
-        self.assertTrue(any(item.endswith("01_绑定Tracker角色.ps1") for item in command))
-        self.assertIn("-NonInteractive", command)
-        self.assertNotIn("-HeadRole", command)
-        self.assertTrue(working_directory.name == "VIVE-Tracker_capture")
-
-        coordinator._on_exit("vive", 0)
-        self.assertEqual(coordinator.phase, "idle")
-        self.assertIn("绑定完成", coordinator.message)
-
-
 class SplitBleAndCaptureLifecycleTests(unittest.TestCase):
     def test_ble_stays_alive_across_start_and_stop_capture(self) -> None:
         coordinator = CaptureCoordinator()
         coordinator.ble = FakeProjectProcess("ble", "BLE-TimeSync")
-        coordinator.vive = FakeProjectProcess("vive", "VIVE Tracker")
+        coordinator.manus = FakeProjectProcess("manus", "MANUS recorder")
+        coordinator.manus_client = FakeProjectProcess("manus_client", "MANUS SDK client")
+        coordinator.manus_client.logs = coordinator.manus.logs
 
         with patch.object(coordinator, "_require_checks"):
             coordinator.start_ble()
@@ -172,7 +155,29 @@ class SplitBleAndCaptureLifecycleTests(unittest.TestCase):
             coordinator._on_line(
                 "ble", "[READY] Mode2Coordinator via COM14@115200"
             )
-            wait_for_phase(coordinator, "ble_ready")
+            deadline = time.monotonic() + 3
+            while not coordinator.manus.is_active and time.monotonic() < deadline:
+                time.sleep(0.01)
+            recorder_command, recorder_cwd = coordinator.manus.start_calls[0]
+            self.assertTrue(any(item.endswith("capture_recorder.py") for item in recorder_command))
+            self.assertIn("--with-requirements", recorder_command)
+            self.assertIn("--control-stdin", recorder_command)
+            self.assertIn("--output-root", recorder_command)
+            self.assertEqual(recorder_cwd.name, "manus_vive_com")
+            coordinator._on_line(
+                "manus", "[READY] Start the 2_4_120hz or 2_4_60hz MANUS client and select Core Local."
+            )
+            deadline = time.monotonic() + 3
+            while not coordinator.manus_client.is_active and time.monotonic() < deadline:
+                time.sleep(0.01)
+            client_command, client_cwd = coordinator.manus_client.start_calls[0]
+            self.assertTrue(client_command[0].endswith("SDKMinimalClient_Windows_2_4_120hz.exe"))
+            self.assertEqual(client_cwd.name, "manus_vive_com")
+            self.assertEqual(coordinator.manus_client.commands, ["2"])
+            coordinator._on_line(
+                "manus", "[STREAMING] MANUS RawSkeleton + OpenVR Tracker data streams ready"
+            )
+            wait_for_phase(coordinator, "streams_ready")
             self.assertEqual(
                 coordinator.state()["mode2"]["time_sync_state"], "SYNCING"
             )
@@ -181,37 +186,49 @@ class SplitBleAndCaptureLifecycleTests(unittest.TestCase):
             self.assertIn("s", coordinator.ble.commands)
             self.assertTrue(coordinator.state()["controls"]["can_scan_wearables"])
 
-            coordinator.start_capture(120)
+            coordinator.start_capture()
             deadline = time.monotonic() + 3
-            while not coordinator.vive.is_active and time.monotonic() < deadline:
+            while "start single_arm_pick L0" not in coordinator.manus.commands and time.monotonic() < deadline:
                 time.sleep(0.01)
+            self.assertNotIn("start single_arm_pick L0", coordinator.ble.commands)
             coordinator._on_line(
-                "vive", "Recording poses to: C:\\captures\\session"
+                "manus", "[RECORDING] F:\\vr_data\\single_arm_pick\\L0\\ep_test (send 'stop' to finish episode)"
             )
+            self.assertEqual(coordinator.capture_output_dir, "F:\\vr_data\\single_arm_pick\\L0\\ep_test")
             deadline = time.monotonic() + 3
-            while "1" not in coordinator.ble.commands and time.monotonic() < deadline:
+            while "start single_arm_pick L0" not in coordinator.ble.commands and time.monotonic() < deadline:
                 time.sleep(0.01)
             coordinator._on_line(
                 "ble",
                 "[START] Connected wearable nodes armed; synchronized capture scheduled.",
             )
             wait_for_phase(coordinator, "recording")
-            self.assertIn("1", coordinator.ble.commands)
+            self.assertIn("start single_arm_pick L0", coordinator.ble.commands)
             self.assertEqual(coordinator.state()["mode2"]["control_result"], "START_OK")
 
             coordinator.stop_capture()
+            coordinator._on_line(
+                "manus", "[SAVED] F:\\vr_data\\single_arm_pick\\L0\\ep_test"
+            )
             deadline = time.monotonic() + 3
             while "0" not in coordinator.ble.commands and time.monotonic() < deadline:
                 time.sleep(0.01)
             coordinator._on_line(
                 "ble", "[STOP] STOP scheduled at coordinator=123456 session=7"
             )
-            wait_for_phase(coordinator, "ble_ready")
+            wait_for_phase(coordinator, "streams_ready")
             self.assertIn("0", coordinator.ble.commands)
-            self.assertIn("stop", coordinator.vive.commands)
+            self.assertIn("stop", coordinator.manus.commands)
             self.assertTrue(coordinator.ble.is_active)
-            self.assertFalse(coordinator.vive.is_active)
+            self.assertTrue(coordinator.manus.is_active)
+            self.assertTrue(coordinator.manus_client.is_active)
             self.assertEqual(coordinator.state()["mode2"]["control_result"], "STOP_OK")
+
+            coordinator.stop_streams()
+            wait_for_phase(coordinator, "ble_ready")
+            self.assertIn("shutdown", coordinator.manus.commands)
+            self.assertFalse(coordinator.manus.is_active)
+            self.assertFalse(coordinator.manus_client.is_active)
 
             coordinator.stop_ble()
             wait_for_phase(coordinator, "idle")
@@ -220,6 +237,38 @@ class SplitBleAndCaptureLifecycleTests(unittest.TestCase):
 
 
 class Mode2StateAndLogTests(unittest.TestCase):
+    def test_tracker_status_lines_drive_compact_ui_state(self) -> None:
+        coordinator = CaptureCoordinator()
+        coordinator._on_line(
+            "manus",
+            "[TRACKER_STATUS] role=right_hand serial=61-BH3702177 "
+            "connected=1 tracking=1",
+        )
+        healthy = coordinator.state()["trackers"][0]
+        self.assertTrue(healthy["connected"])
+        self.assertTrue(healthy["tracking"])
+
+        coordinator._on_line(
+            "manus",
+            "[TRACKER_STATUS] role=right_hand serial=61-BH3702177 "
+            "connected=1 tracking=0",
+        )
+        lost = coordinator.state()["trackers"][0]
+        self.assertTrue(lost["connected"])
+        self.assertFalse(lost["tracking"])
+
+    def test_custom_task_name_is_persisted_and_reloaded(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            options_path = Path(temporary_directory) / "task_options.json"
+            with patch.object(process_manager_module, "TASK_OPTIONS_PATH", options_path):
+                coordinator = CaptureCoordinator()
+                self.assertEqual(coordinator.add_task_name("custom_pick"), "custom_pick")
+                reloaded = CaptureCoordinator()
+                self.assertIn(
+                    "custom_pick",
+                    reloaded.state()["capture_options"]["task_names"],
+                )
+
     def test_stop_frame_reports_are_grouped_by_episode_and_node(self) -> None:
         coordinator = CaptureCoordinator()
         for node_id in (1, 2, 3):
@@ -304,23 +353,30 @@ class Mode2StateAndLogTests(unittest.TestCase):
     def test_start_failure_does_not_enter_recording(self) -> None:
         coordinator = CaptureCoordinator()
         coordinator.ble = FakeProjectProcess("ble", "BLE-TimeSync")
-        coordinator.vive = FakeProjectProcess("vive", "VIVE Tracker")
+        coordinator.manus = FakeProjectProcess("manus", "MANUS recorder")
+        coordinator.manus_client = FakeProjectProcess("manus_client", "MANUS SDK client")
+        coordinator.manus_client.logs = coordinator.manus.logs
         coordinator.ble.active = True
         coordinator._on_line("ble", "[READY] Mode2Coordinator via COM14@115200")
-        coordinator.phase = "ble_ready"
+        coordinator.manus.active = True
+        coordinator.manus_client.active = True
+        coordinator._streams_ready.set()
+        coordinator.phase = "streams_ready"
 
         with patch.object(coordinator, "_require_checks"):
-            coordinator.start_capture(120)
+            coordinator.start_capture()
+        coordinator._on_line("manus", "[RECORDING] F:\\vr_data\\failed (send 'stop' to finish episode)")
         deadline = time.monotonic() + 3
-        while not coordinator.vive.is_active and time.monotonic() < deadline:
-            time.sleep(0.01)
-        coordinator._on_line("vive", "Recording poses to: C:\\captures\\failed")
-        deadline = time.monotonic() + 3
-        while "1" not in coordinator.ble.commands and time.monotonic() < deadline:
+        while "start single_arm_pick L0" not in coordinator.ble.commands and time.monotonic() < deadline:
             time.sleep(0.01)
         coordinator._on_line("ble", "[START FAILED] START rejected: node 2 offline")
-        wait_for_phase(coordinator, "ble_ready")
-        self.assertFalse(coordinator.vive.is_active)
+        deadline = time.monotonic() + 3
+        while "stop" not in coordinator.manus.commands and time.monotonic() < deadline:
+            time.sleep(0.01)
+        coordinator._on_line("manus", "[SAVED] F:\\vr_data\\failed")
+        wait_for_phase(coordinator, "streams_ready")
+        self.assertTrue(coordinator.manus.is_active)
+        self.assertTrue(coordinator.manus_client.is_active)
         self.assertIn("START 未成功", coordinator.message)
 
 if __name__ == "__main__":

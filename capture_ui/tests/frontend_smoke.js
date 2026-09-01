@@ -15,6 +15,7 @@ class FakeElement {
   }
 
   addEventListener() {}
+  focus() {}
   append(...items) { this.children.push(...items); }
   appendChild(item) { this.children.push(item); }
   replaceChildren(...items) { this.children = items; }
@@ -42,7 +43,16 @@ global.fetch = async (url) => ({
       phase: "idle",
       message: "准备就绪",
       error: null,
-      vive_output_dir: null,
+      capture_output_dir: null,
+      capture_options: {
+        task_names: ["single_arm_pick", "limited_space", "dual_arm_interaction", "test"],
+        complex_levels: ["L0", "L1", "L_test"],
+        selected_task_name: "single_arm_pick",
+        selected_complex_level: "L0",
+      },
+      trackers: [
+        { serial: "61-BH3702177", role: "right_hand", connected: true, tracking: true, updated_at: "2026-08-08T12:00:00+08:00" },
+      ],
       mode2: {
         name: "Mode2Coordinator",
         serial: "COM14@115200",
@@ -63,20 +73,21 @@ global.fetch = async (url) => ({
       controls: {
         can_start_ble: true,
         can_stop_ble: false,
+        can_start_streams: false,
+        can_stop_streams: false,
         can_scan_wearables: false,
         can_start_capture: false,
         can_stop_capture: false,
-        can_bind_trackers: true,
-        can_cancel_binding: false,
       },
       processes: {
         ble: { status: "stopped", pid: null },
-        vive: { status: "stopped", pid: null },
+        manus: { status: "stopped", pid: null },
+        manus_client: { status: "stopped", pid: null },
       },
       logs: {
         ble_timesync: { items: [], last_seq: 0 },
         ble_control: { items: [], last_seq: 0 },
-        vive: { items: [], last_seq: 0 },
+        manus: { items: [], last_seq: 0 },
       },
     };
   },
@@ -89,11 +100,14 @@ setTimeout(() => {
   if (notice.textContent.includes("错误") || notice.textContent.includes("not defined")) {
     throw new Error(`Frontend smoke test failed: ${notice.textContent}`);
   }
-  if (!elements.has("bind-button")) {
-    throw new Error("bind-button control was not initialized");
+  if (!elements.has("manus-client-status")) {
+    throw new Error("MANUS client status was not initialized");
   }
   if (!elements.has("scan-button")) {
     throw new Error("scan-button control was not initialized");
+  }
+  if (!elements.has("streams-button")) {
+    throw new Error("streams-button control was not initialized");
   }
   const nodeList = elements.get("node-list");
   if (!nodeList || nodeList.children.length !== 1) {
@@ -111,6 +125,12 @@ setTimeout(() => {
   const frameList = elements.get("frame-report-list");
   if (!frameList || frameList.children.length !== 1) {
     throw new Error("Episode frame count was not rendered");
+  }
+  if (elements.get("task-name-select").children.length !== 5) {
+    throw new Error("Task selector options were not rendered");
+  }
+  if (elements.get("tracker-status-list").children.length !== 1) {
+    throw new Error("Tracker status bar was not rendered");
   }
   process.stdout.write("frontend runtime smoke: OK\n");
 }, 20);

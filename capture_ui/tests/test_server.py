@@ -27,8 +27,10 @@ class ServerRuntimeTests(unittest.TestCase):
                 page = response.read().decode("utf-8")
                 self.assertEqual(response.status, 200)
                 self.assertIn("联合数据采集", page)
-                self.assertIn("bind-button", page)
+                self.assertIn("MANUS + Vive Tracker", page)
+                self.assertIn("manus-client-status", page)
                 self.assertIn("scan-button", page)
+                self.assertIn("streams-button", page)
                 self.assertIn("frame-report-list", page)
             with urlopen(base_url + "/api/state", timeout=5) as response:
                 state = json.load(response)
@@ -40,6 +42,8 @@ class ServerRuntimeTests(unittest.TestCase):
                 ("/api/ble/start", "start_ble"),
                 ("/api/ble/stop", "stop_ble"),
                 ("/api/ble/scan", "scan_wearables"),
+                ("/api/streams/start", "start_streams"),
+                ("/api/streams/stop", "stop_streams"),
                 ("/api/capture/start", "start_capture"),
                 ("/api/capture/stop", "stop_capture"),
             ]
@@ -53,7 +57,10 @@ class ServerRuntimeTests(unittest.TestCase):
                     )
                     with urlopen(request, timeout=5) as response:
                         self.assertEqual(response.status, 202)
-                    method.assert_called_once()
+                    if path == "/api/capture/start":
+                        method.assert_called_once_with("single_arm_pick", "L0")
+                    else:
+                        method.assert_called_once()
         finally:
             server.shutdown()
             server.server_close()

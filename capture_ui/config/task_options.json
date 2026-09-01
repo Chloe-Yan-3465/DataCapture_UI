@@ -1,0 +1,9 @@
+{
+  "task_names": [
+    "single_arm_pick",
+    "limited_space",
+    "dual_arm_interaction",
+    "test",
+    "single_arm_pick_1"
+  ]
+}

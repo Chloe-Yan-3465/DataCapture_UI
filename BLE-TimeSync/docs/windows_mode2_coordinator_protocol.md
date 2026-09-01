@@ -25,13 +25,13 @@ TIME_ACCEPT seq=<seq> nodes=<count> uncertainty_us=<value>\n
 
 ```text
 SCAN\n
-START\n
+START TASK=<task_name> LEVEL=<complex_level>\n
 STOP\n
 ABORT\n
 STATUS\n
 ```
 
-Windows 端的正常 UI 暴露 SCAN、START 与 STOP。`SCAN` 只在用户按下键盘 `S` 或点击 UI 扫描按钮时发送，中控空闲时不会周期扫描新 wearable。裸 `START` 的内部 session ID 由中控固件生成。
+Windows 端的正常 UI 暴露 SCAN、START 与 STOP。`SCAN` 只在用户按下键盘 `S` 或点击 UI 扫描按钮时发送，中控空闲时不会周期扫描新 wearable。START 不携带 session ID；内部 session ID 由中控固件生成。task 与 level 只允许字母、数字、下划线和连字符。裸 `START` 保持兼容并使用 `test/L_test`。
 
 START 的最终成功行以 `session <id>` 开头并包含独立单词 `ARMED`。Windows 不依赖 `all nodes` 等固定后缀，因此兼容“全部配置节点”和“当前已连接节点”两种中控策略。
 

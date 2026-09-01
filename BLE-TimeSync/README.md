@@ -66,8 +66,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 运行后：
 
 - 按 `S`：向中控发送 `SCAN`，触发一次 4 秒 wearable 扫描；中控平时不会自动扫描新设备。
-- 按 `1`：先完成一轮新授时并等待2秒应用窗口，再发送无 ID 的
-  `START`，最后等待中控报告当前已连接节点均已 `ARMED`。
+- 按 `1`：先完成一轮新授时并等待2秒应用窗口，再发送无 ID 的裸
+  `START`（兼容模式使用 `test/L_test`），最后等待中控报告当前已连接节点均已 `ARMED`。
+- UI 控制模式发送 `start <task_name> <complex_level>`，串口对应
+  `START TASK=<task_name> LEVEL=<complex_level>`。
 - 按 `0`：发送无 ID 的 `STOP`。
 - `Ctrl+C`：退出并关闭串口。
 
@@ -77,7 +79,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 .\.venv\Scripts\python.exe -m app.main run --control-stdin
 ```
 
-stdin 接受 `1/start`、`0/stop`、`quit`。
+stdin 接受 `1/start`、`start <task_name> <complex_level>`、`0/stop`、`quit`。
 
 ## 授时协议
 
@@ -99,11 +101,12 @@ Windows 连续查询多次，剔除预热样本，选择净 RTT 最小的样本�
 
 ```text
 SCAN
-START
+START TASK=<task_name> LEVEL=<complex_level>
 STOP
 ```
 
-Windows 不发送 session ID；中控固件自行生成内部 session，并统一下发给当前已连接的 wearable。
+Windows 不发送 session ID；中控固件自行生成内部 session，并把 task、level
+及 session 统一下发给当前已连接的 wearable。
 
 ## 输出
 

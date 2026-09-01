@@ -26,7 +26,17 @@ class CoordinatorProtocolTests(unittest.TestCase):
         )
         self.assertEqual(encode_scan(), b"SCAN\n")
         self.assertEqual(encode_start(), b"START\n")
+        self.assertEqual(
+            encode_start("single_arm_pick", "L0"),
+            b"START TASK=single_arm_pick LEVEL=L0\n",
+        )
         self.assertEqual(encode_stop(), b"STOP\n")
+
+    def test_start_metadata_rejects_unsafe_path_segments(self) -> None:
+        with self.assertRaises(CoordinatorProtocolError):
+            encode_start("../escape", "L0")
+        with self.assertRaises(CoordinatorProtocolError):
+            encode_start("task", "L 0")
 
     def test_parses_reply_accept_and_error(self) -> None:
         reply = parse_coordinator_line("TIME_REPLY 7 1000 1010")

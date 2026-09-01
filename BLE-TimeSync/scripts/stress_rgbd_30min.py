@@ -36,6 +36,7 @@ class EpisodeResult:
     min_capture_fps: float = 999.0
     stats_count: int = 0
     head_frames: int | None = None
+    left_frames: int | None = None
     right_frames: int | None = None
     success: bool = False
     error: str = ""
@@ -169,11 +170,15 @@ class StressRunner:
         tail: RemoteTail,
         combined: CombinedLog,
         total_seconds: int,
+        expected_nodes: tuple[int, ...] = (1, 3),
+        profile: str = "30min",
     ) -> None:
         self.link = link
         self.tail = tail
         self.combined = combined
         self.total_seconds = total_seconds
+        self.expected_nodes = expected_nodes
+        self.profile = profile
         self.stage = diag.StageRunner(link, 1)
         self.serial_cursor = 0
         self.status: dict[int, tuple[bool, str, int, float]] = {}
@@ -215,13 +220,13 @@ class StressRunner:
             time.sleep(0.2)
             self._drain_serial_status()
             good = True
-            for node in (1, 3):
+            for node in self.expected_nodes:
                 item = self.status.get(node)
                 if item is None or not item[0] or item[1] != expected_state:
                     good = False
             if good:
                 return
-        snapshot = {node: self.status.get(node) for node in (1, 3)}
+        snapshot = {node: self.status.get(node) for node in self.expected_nodes}
         raise RuntimeError(f"nodes not {expected_state}: {snapshot}")
 
     def connect_nodes(self) -> None:
@@ -232,11 +237,11 @@ class StressRunner:
             time.sleep(9.0)
             try:
                 self.wait_for_nodes("IDLE", 8.0)
-                self.mark("NODES_CONNECTED head=1 right=3")
+                self.mark(f"NODES_CONNECTED nodes={self.expected_nodes}")
                 return
             except RuntimeError as exc:
                 self.mark(f"SCAN_RETRY reason={exc}")
-        raise RuntimeError("head and right did not both reach IDLE")
+        raise RuntimeError(f"nodes {self.expected_nodes} did not all reach IDLE")
 
     def synchronize(self) -> None:
         self.stage.synchronize()
@@ -260,14 +265,17 @@ class StressRunner:
         low_fps_streak = low_fps_streak + 1 if fps < 20.0 else 0
         if low_fps_streak >= 3:
             raise RuntimeError(f"camera capture_fps stayed below 20: {fps:.1f}")
-        for node in (1, 3):
+        for node in self.expected_nodes:
             item = self.status.get(node)
             if item is None or now - item[3] > 12.0:
                 raise RuntimeError(f"node {node} status stale")
             connected, state, fresh_ms, _ = item
             if not connected:
                 raise RuntimeError(f"node {node} disconnected")
-            if fresh_ms > 2500:
+            # A single BLE fit sample can be delayed for roughly 3 seconds while
+            # the link stays connected and immediately recovers. START performs
+            # a fresh synchronization, so reserve failure for a longer outage.
+            if fresh_ms > 5000:
                 raise RuntimeError(f"node {node} timesync stale: {fresh_ms}ms")
             if recording and state not in {"ARMED", "RUNNING"}:
                 raise RuntimeError(f"node {node} unexpected recording state: {state}")
@@ -305,7 +313,7 @@ class StressRunner:
         frames: dict[int, int] = {}
         deadline = time.monotonic() + 20.0
         scan = cursor
-        while time.monotonic() < deadline and len(frames) < 2:
+        while time.monotonic() < deadline and len(frames) < len(self.expected_nodes):
             with self.link.condition:
                 events = list(self.link.events[scan:])
                 scan = len(self.link.events)
@@ -313,11 +321,11 @@ class StressRunner:
                 match = STOP_FRAME_RE.fullmatch(event.line)
                 if match and int(match.group(1)) == session:
                     frames[int(match.group(2))] = int(match.group(3))
-            if len(frames) < 2:
+            if len(frames) < len(self.expected_nodes):
                 time.sleep(0.2)
         self.active_session = 0
         self.wait_for_nodes("IDLE", 15.0)
-        if set(frames) != {1, 3}:
+        if set(frames) != set(self.expected_nodes):
             raise RuntimeError(f"missing STOP_FRAME: {frames}")
         return frames
 
@@ -369,13 +377,14 @@ class StressRunner:
             episode_stats = self.tail.stats[stats_start:]
             result.min_capture_fps = min(item[2] for item in episode_stats)
             result.stats_count = len(episode_stats)
-            result.head_frames = frames[1]
-            result.right_frames = frames[3]
+            result.head_frames = frames.get(1)
+            result.left_frames = frames.get(2)
+            result.right_frames = frames.get(3)
             result.stopped_at = datetime.now().astimezone().isoformat(timespec="seconds")
             result.success = True
             self.mark(
                 f"EPISODE_PASS index={index} session={session} "
-                f"head_frames={frames[1]} right_frames={frames[3]} "
+                f"frames={frames} "
                 f"min_fps={result.min_capture_fps:.1f}"
             )
         except Exception as exc:
@@ -389,11 +398,16 @@ class StressRunner:
         stats_start = len(self.tail.stats)
         self.connect_nodes()
         self.wait_for_nodes("IDLE", 10.0)
-        self.mark("INITIAL_IDLE_BEGIN seconds=45")
-        self.monitor(45, False, stats_start)
-
-        durations = [35, 78, 48, 90, 32, 67, 55, 84]
-        rests = [92, 167, 61, 213, 104, 188, 76]
+        if self.profile == "10min-5":
+            initial_idle = 25
+            durations = [35, 55, 42, 70, 48]
+            rests = [38, 57, 31, 49]
+        else:
+            initial_idle = 45
+            durations = [35, 78, 48, 90, 32, 67, 55, 84]
+            rests = [92, 167, 61, 213, 104, 188, 76]
+        self.mark(f"INITIAL_IDLE_BEGIN seconds={initial_idle}")
+        self.monitor(initial_idle, False, stats_start)
         for index, duration in enumerate(durations, start=1):
             self.run_episode(index, duration)
             if index <= len(rests):
@@ -420,6 +434,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--uart-log", required=True)
     parser.add_argument("--remote-tail-file", type=Path)
     parser.add_argument("--total-seconds", type=int, default=1800)
+    parser.add_argument("--nodes", default="1,3")
+    parser.add_argument("--profile", choices=("30min", "10min-5"), default="30min")
     return parser.parse_args()
 
 
@@ -445,7 +461,17 @@ def main() -> int:
             args.remote_tail_file,
         )
         link = diag.DiagnosticSerial(args.port, 115200, serial_path)
-        runner = StressRunner(link, tail, combined, args.total_seconds)
+        expected_nodes = tuple(int(item) for item in args.nodes.split(","))
+        if not expected_nodes or len(set(expected_nodes)) != len(expected_nodes):
+            raise ValueError("--nodes must contain unique comma-separated node IDs")
+        runner = StressRunner(
+            link,
+            tail,
+            combined,
+            args.total_seconds,
+            expected_nodes=expected_nodes,
+            profile=args.profile,
+        )
         time.sleep(3.0)
         runner.run()
         exit_code = 0

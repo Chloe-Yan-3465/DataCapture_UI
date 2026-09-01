@@ -93,7 +93,11 @@ class CoordinatorManager:
         await self.client.send(encode_scan())
         print("\n[SCAN] Wearable discovery requested.\n", flush=True)
 
-    async def start_all(self) -> bool:
+    async def start_all(
+        self,
+        task_name: str | None = None,
+        complex_level: str | None = None,
+    ) -> bool:
         async with self._control_lock:
             if self.control_state in {"SYNCING", "STARTING", "RUNNING"}:
                 self.logger.warning("START ignored while state=%s", self.control_state)
@@ -109,7 +113,7 @@ class CoordinatorManager:
                 return False
             self.control_state = "STARTING"
             self.client.drain_lines()
-            await self.client.send(encode_start())
+            await self.client.send(encode_start(task_name, complex_level))
             try:
                 line = await self.client.wait_for_line(
                     lambda value: (

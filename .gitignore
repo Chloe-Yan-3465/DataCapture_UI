@@ -31,6 +31,7 @@ BLE-TimeSync/logs/*
 !BLE-TimeSync/logs/.gitkeep
 VIVE-Tracker_capture/vr_captures/
 VIVE-Tracker_capture/captures/
+vr_data/
 *.pid
 *.pid.lock
 *.dmp

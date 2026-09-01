@@ -31,7 +31,7 @@ class CaptureRequestHandler(BaseHTTPRequestHandler):
                 COORDINATOR.state(
                     self._integer_query(query, "after_ble_timesync"),
                     self._integer_query(query, "after_ble_control"),
-                    self._integer_query(query, "after_vive"),
+                    self._integer_query(query, "after_manus"),
                 )
             )
             return
@@ -50,18 +50,26 @@ class CaptureRequestHandler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/ble/stop":
                 COORDINATOR.stop_ble()
                 self._send_json({"ok": True}, HTTPStatus.ACCEPTED)
+            elif parsed.path == "/api/streams/start":
+                COORDINATOR.start_streams()
+                self._send_json({"ok": True}, HTTPStatus.ACCEPTED)
+            elif parsed.path == "/api/streams/stop":
+                COORDINATOR.stop_streams()
+                self._send_json({"ok": True}, HTTPStatus.ACCEPTED)
             elif parsed.path == "/api/ble/scan":
                 COORDINATOR.scan_wearables()
                 self._send_json({"ok": True}, HTTPStatus.ACCEPTED)
             elif parsed.path in {"/api/capture/start", "/api/start"}:
-                COORDINATOR.start_capture(float(body.get("tracker_rate", 120)))
+                COORDINATOR.start_capture(
+                    str(body.get("task_name", "single_arm_pick")),
+                    str(body.get("complex_level", "L0")),
+                )
                 self._send_json({"ok": True}, HTTPStatus.ACCEPTED)
-            elif parsed.path == "/api/bind-trackers":
-                COORDINATOR.bind_tracker_roles()
-                self._send_json({"ok": True}, HTTPStatus.ACCEPTED)
-            elif parsed.path == "/api/cancel-bind":
-                COORDINATOR.cancel_tracker_binding()
-                self._send_json({"ok": True}, HTTPStatus.ACCEPTED)
+            elif parsed.path == "/api/task-options":
+                task_name = COORDINATOR.add_task_name(
+                    str(body.get("task_name", ""))
+                )
+                self._send_json({"ok": True, "task_name": task_name})
             elif parsed.path in {"/api/capture/stop", "/api/stop"}:
                 COORDINATOR.stop_capture()
                 self._send_json({"ok": True}, HTTPStatus.ACCEPTED)
