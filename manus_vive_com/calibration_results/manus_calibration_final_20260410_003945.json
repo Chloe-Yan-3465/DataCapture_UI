@@ -1,0 +1,65 @@
+{
+  "session_id": "20260410_003945",
+  "start_time": "2026-04-10T00:39:45.809556",
+  "frames": [],
+  "rotation_tests": [
+    {
+      "test_type": "rotation",
+      "timestamp": "2026-04-10T00:40:18.548779",
+      "frame_count": 0,
+      "metrics": {
+        "mean_radius_m": 0.0,
+        "std_radius_m": 0.0,
+        "max_radius_m": 0.0,
+        "threshold_m": 0.01,
+        "is_correct": true,
+        "frames_analyzed": 0
+      },
+      "is_acceptable": true
+    }
+  ],
+  "translation_tests": [
+    {
+      "test_type": "translation",
+      "timestamp": "2026-04-10T00:40:38.411175",
+      "frame_count": 0,
+      "result": null,
+      "diagnostic_info": {
+        "status": "INSUFFICIENT_DATA",
+        "points_collected": 0,
+        "message": "需要更多平移数据进行分析"
+      }
+    },
+    {
+      "test_type": "translation",
+      "timestamp": "2026-04-10T00:42:32.860480",
+      "frame_count": 0,
+      "result": null,
+      "diagnostic_info": {
+        "status": "INSUFFICIENT_DATA",
+        "points_collected": 0,
+        "message": "需要更多平移数据进行分析"
+      }
+    },
+    {
+      "test_type": "translation",
+      "timestamp": "2026-04-10T00:42:44.627386",
+      "frame_count": 0,
+      "result": null,
+      "diagnostic_info": {
+        "status": "INSUFFICIENT_DATA",
+        "points_collected": 0,
+        "message": "需要更多平移数据进行分析"
+      }
+    }
+  ],
+  "calibration_suggestions": [],
+  "end_time": "2026-04-10T00:43:32.930542",
+  "total_frames": 0,
+  "final_calibration_suggestions": {
+    "status": "INSUFFICIENT_DATA",
+    "message": "需要更多数据 (当前: 0/50)",
+    "adjustments": null,
+    "confidence": 0.0
+  }
+}

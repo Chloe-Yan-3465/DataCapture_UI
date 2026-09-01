@@ -1,0 +1,20 @@
+{
+  "session_id": "20260410_005219",
+  "start_time": "2026-04-10T00:52:19.121443",
+  "frames": [],
+  "rotation_tests": [],
+  "translation_tests": [
+    {
+      "test_type": "translation",
+      "timestamp": "2026-04-10T00:53:03.281274",
+      "frame_count": 1589,
+      "result": {
+        "linearity": 0.6310883189461005,
+        "avg_deviation_m": 0.09046565031056879,
+        "max_deviation_m": 0.3274956376265235,
+        "direction": [
+          -0.13004987380530478,
+          -0.9757204937567517,
+          -0.17622868207617304
+        ],
+        "is_linear": 

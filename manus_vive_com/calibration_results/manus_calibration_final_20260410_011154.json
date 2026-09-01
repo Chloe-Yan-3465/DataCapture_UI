@@ -1,0 +1,58 @@
+{
+  "session_id": "20260410_011154",
+  "start_time": "2026-04-10T01:11:54.420281",
+  "frames": [],
+  "rotation_tests": [],
+  "translation_tests": [
+    {
+      "test_type": "translation",
+      "timestamp": "2026-04-10T01:12:22.445754",
+      "frame_count": 1091,
+      "result": {
+        "linearity": 0.6316347719849114,
+        "avg_deviation_m": 0.0027914387280856255,
+        "max_deviation_m": 0.00884829430620331,
+        "direction": [
+          0.7631319365873183,
+          0.6462260705652012,
+          0.004638219739155677
+        ],
+        "is_linear": false,
+        "is_stable": true,
+        "points_analyzed": 1089
+      },
+      "diagnostic_info": {
+        "status": "ANALYZED",
+        "translation_quality_good": false,
+        "metrics": {
+          "linearity": 0.6316347719849114,
+          "avg_deviation_m": 0.0027914387280856255,
+          "max_deviation_m": 0.00884829430620331,
+          "direction": [
+            0.7631319365873183,
+            0.6462260705652012,
+            0.004638219739155677
+          ],
+          "is_linear": false,
+          "is_stable": true,
+          "linearity_threshold": 0.9,
+          "deviation_threshold_m": 0.02,
+          "points_analyzed": 1089
+        },
+        "total_distance_m": 0.8053457152349051,
+        "average_speed_mps": 0.04197169541663935,
+        "translation_count": 1,
+        "recommendation": "[ERROR][ERROR] 平移质量差：需要检查tracking系统"
+      }
+    }
+  ],
+  "calibration_suggestions": [],
+  "end_time": "2026-04-10T01:12:22.446769",
+  "total_frames": 1091,
+  "final_calibration_suggestions": {
+    "status": "INSUFFICIENT_DATA",
+    "message": "需要更多数据 (当前: 0/50)",
+    "adjustments": null,
+    "confidence": 0.0
+  }
+}

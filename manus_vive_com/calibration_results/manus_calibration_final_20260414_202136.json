@@ -1,0 +1,183 @@
+{
+  "session_id": "20260414_202136",
+  "start_time": "2026-04-14T20:21:36.648329",
+  "frames": [
+    {
+      "frame": 50,
+      "timestamp": 1776169315289,
+      "error_vector": [
+        -2.322617,
+        -2.865369,
+        1.2019250000000001
+      ],
+      "error_distance_m": 3.879370173169222,
+      "wrist_position": [
+        2.322617,
+        2.865369,
+        -1.171925
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 180,
+      "timestamp": 1776169321364,
+      "error_vector": [
+        -2.322617,
+        -2.865369,
+        1.2019250000000001
+      ],
+      "error_distance_m": 3.879370173169222,
+      "wrist_position": [
+        2.322617,
+        2.865369,
+        -1.171925
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 290,
+      "timestamp": 1776169326487,
+      "error_vector": [
+        -2.322617,
+        -2.865369,
+        1.2019250000000001
+      ],
+      "error_distance_m": 3.879370173169222,
+      "wrist_position": [
+        2.322617,
+        2.865369,
+        -1.171925
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 300,
+      "timestamp": 1776169326955,
+      "error_vector": [
+        -2.322617,
+        -2.865369,
+        1.2019250000000001
+      ],
+      "error_distance_m": 3.879370173169222,
+      "wrist_position": [
+        2.322617,
+        2.865369,
+        -1.171925
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 420,
+      "timestamp": 1776169332557,
+      "error_vector": [
+        -2.322617,
+        -2.865369,
+        1.2019250000000001
+      ],
+      "error_distance_m": 3.879370173169222,
+      "wrist_position": [
+        2.322617,
+        2.865369,
+        -1.171925
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 540,
+      "timestamp": 1776169338171,
+      "error_vector": [
+        -2.322617,
+        -2.865369,
+        1.2019250000000001
+      ],
+      "error_distance_m": 3.879370173169222,
+      "wrist_position": [
+        2.322617,
+        2.865369,
+        -1.171925
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    }
+  ],
+  "rotation_tests": [],
+  "translation_tests": [],
+  "calibration_suggestions": [],
+  "end_time": "2026-04-14T20:22:24.108538",
+  "total_frames": 659,
+  "final_calibration_suggestions": {
+    "status": "READY",
+    "sample_count": 61,
+    "adjustments": [
+      {
+        "axis": "X",
+        "current_error_m": -0.7234380819672134,
+        "suggested_adjustment_m": 0.7234380819672134,
+        "adjustment_cm": 72.34380819672134,
+        "std_error_m": 1.0755960808705285,
+        "confidence_interval": [
+          -0.9989110293391089,
+          -0.44796513459531895
+        ],
+        "needs_adjustment": true
+      },
+      {
+        "axis": "Y",
+        "current_error_m": -0.8924919836065576,
+        "suggested_adjustment_m": 0.8924919836065576,
+        "adjustment_cm": 89.24919836065575,
+        "std_error_m": 1.3269426972453526,
+        "confidence_interval": [
+          -1.2323377884629152,
+          -0.5526461787501993
+        ],
+        "needs_adjustment": true
+      },
+      {
+        "axis": "Z",
+        "current_error_m": 0.374370081967213,
+        "suggested_adjustment_m": -0.374370081967213,
+        "adjustment_cm": -37.4370081967213,
+        "std_error_m": 0.5566074042772925,
+        "confidence_interval": [
+          0.23181630651910198,
+          0.5169238574153239
+        ],
+        "needs_adjustment": true
+      }
+    ],
+    "total_adjustment_magnitude_m": 1.2083284145936923,
+    "total_adjustment_vector": [
+      0.7234380819672134,
+      0.8924919836065576,
+      -0.374370081967213
+    ],
+    "confidence": 0.366,
+    "xml_suggestions": "<!-- 警告: 检测到坐标系不匹配。请检查MANUS Core配置 -->\n<!-- MANUS Core Offset 调整建议 -->\n<!-- 将以下值添加到对应的tracker配置中 -->\n\n<!-- 调整X轴: 0.7234m (72.3cm) -->\n<offset_x>0.723438</offset_x>\n<!-- 调整Y轴: 0.8925m (89.2cm) -->\n<offset_y>0.892492</offset_y>\n<!-- 调整Z轴: -0.3744m (-37.4cm) -->\n<offset_z>-0.374370</offset_z>",
+    "human_readable": "[警告] 检测到坐标系不匹配。建议可能不准确。请检查MANUS Core中Tracker的配置。\n建议调整: X轴: 增加 0.723m (72.3cm), Y轴: 增加 0.892m (89.2cm), Z轴: 减少 0.374m (37.4cm)",
+    "coordinate_issue_detected": true
+  }
+}

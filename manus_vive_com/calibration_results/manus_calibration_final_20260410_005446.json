@@ -1,0 +1,31 @@
+{
+  "session_id": "20260410_005446",
+  "start_time": "2026-04-10T00:54:46.728759",
+  "frames": [],
+  "rotation_tests": [
+    {
+      "test_type": "rotation",
+      "timestamp": "2026-04-10T00:55:54.608347",
+      "frame_count": 3232,
+      "metrics": {
+        "mean_radius_m": 0.0009918019480600981,
+        "std_radius_m": 0.0006421485496551176,
+        "max_radius_m": 0.0023609316754201817,
+        "threshold_m": 0.01,
+        "is_correct": true,
+        "frames_analyzed": 50
+      },
+      "is_acceptable": true
+    }
+  ],
+  "translation_tests": [],
+  "calibration_suggestions": [],
+  "end_time": "2026-04-10T00:55:54.608347",
+  "total_frames": 3232,
+  "final_calibration_suggestions": {
+    "status": "INSUFFICIENT_DATA",
+    "message": "需要更多数据 (当前: 0/50)",
+    "adjustments": null,
+    "confidence": 0.0
+  }
+}

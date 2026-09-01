@@ -1,0 +1,1378 @@
+{
+  "session_id": "20260410_023303",
+  "start_time": "2026-04-10T02:33:03.787738",
+  "frames": [
+    {
+      "frame": 10,
+      "timestamp": 1775759598458,
+      "error_vector": [
+        -2.3886,
+        -2.881363,
+        1.160241
+      ],
+      "error_distance_m": 3.9183953189858216,
+      "wrist_position": [
+        2.3886,
+        2.881363,
+        -1.130241
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 20,
+      "timestamp": 1775759598932,
+      "error_vector": [
+        -2.388469,
+        -2.881872,
+        1.160436
+      ],
+      "error_distance_m": 3.9187475165467087,
+      "wrist_position": [
+        2.388469,
+        2.881872,
+        -1.130436
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 30,
+      "timestamp": 1775759599399,
+      "error_vector": [
+        -2.388237,
+        -2.881319,
+        1.160251
+      ],
+      "error_distance_m": 3.9181446541610736,
+      "wrist_position": [
+        2.388237,
+        2.881319,
+        -1.130251
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 40,
+      "timestamp": 1775759599866,
+      "error_vector": [
+        -2.388893,
+        -2.88198,
+        1.16046
+      ],
+      "error_distance_m": 3.919092483911167,
+      "wrist_position": [
+        2.388893,
+        2.88198,
+        -1.13046
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 50,
+      "timestamp": 1775759600334,
+      "error_vector": [
+        -2.388936,
+        -2.882492,
+        1.1608100000000001
+      ],
+      "error_distance_m": 3.9195988568040994,
+      "wrist_position": [
+        2.388936,
+        2.882492,
+        -1.13081
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 60,
+      "timestamp": 1775759600806,
+      "error_vector": [
+        -2.38835,
+        -2.88173,
+        1.16022
+      ],
+      "error_distance_m": 3.918506598667406,
+      "wrist_position": [
+        2.38835,
+        2.88173,
+        -1.13022
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 70,
+      "timestamp": 1775759601271,
+      "error_vector": [
+        -2.388155,
+        -2.881312,
+        1.160298
+      ],
+      "error_distance_m": 3.9181034435263444,
+      "wrist_position": [
+        2.388155,
+        2.881312,
+        -1.130298
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 80,
+      "timestamp": 1775759601741,
+      "error_vector": [
+        -2.388977,
+        -2.880843,
+        1.160079
+      ],
+      "error_distance_m": 3.918194837347806,
+      "wrist_position": [
+        2.388977,
+        2.880843,
+        -1.130079
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 90,
+      "timestamp": 1775759602207,
+      "error_vector": [
+        -2.388007,
+        -2.880879,
+        1.160137
+      ],
+      "error_distance_m": 3.917647138712087,
+      "wrist_position": [
+        2.388007,
+        2.880879,
+        -1.130137
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 100,
+      "timestamp": 1775759602672,
+      "error_vector": [
+        -2.388778,
+        -2.882013,
+        1.160383
+      ],
+      "error_distance_m": 3.9190238545002503,
+      "wrist_position": [
+        2.388778,
+        2.882013,
+        -1.130383
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 110,
+      "timestamp": 1775759603142,
+      "error_vector": [
+        -2.388212,
+        -2.881307,
+        1.160357
+      ],
+      "error_distance_m": 3.918151981820256,
+      "wrist_position": [
+        2.388212,
+        2.881307,
+        -1.130357
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 120,
+      "timestamp": 1775759603608,
+      "error_vector": [
+        -2.387631,
+        -2.880225,
+        1.160077
+      ],
+      "error_distance_m": 3.916919259917799,
+      "wrist_position": [
+        2.387631,
+        2.880225,
+        -1.130077
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 130,
+      "timestamp": 1775759604078,
+      "error_vector": [
+        -2.38827,
+        -2.881414,
+        1.160207
+      ],
+      "error_distance_m": 3.9182216010768203,
+      "wrist_position": [
+        2.38827,
+        2.881414,
+        -1.130207
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 140,
+      "timestamp": 1775759604544,
+      "error_vector": [
+        -2.388376,
+        -2.881564,
+        1.160311
+      ],
+      "error_distance_m": 3.918427314649718,
+      "wrist_position": [
+        2.388376,
+        2.881564,
+        -1.130311
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 150,
+      "timestamp": 1775759605014,
+      "error_vector": [
+        -2.388714,
+        -2.881222,
+        1.16025
+      ],
+      "error_distance_m": 3.918363797502728,
+      "wrist_position": [
+        2.388714,
+        2.881222,
+        -1.13025
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 160,
+      "timestamp": 1775759605487,
+      "error_vector": [
+        -2.387981,
+        -2.881028,
+        1.160214
+      ],
+      "error_distance_m": 3.91776366297675,
+      "wrist_position": [
+        2.387981,
+        2.881028,
+        -1.130214
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 170,
+      "timestamp": 1775759605946,
+      "error_vector": [
+        -2.388622,
+        -2.881467,
+        1.160348
+      ],
+      "error_distance_m": 3.9185168893443603,
+      "wrist_position": [
+        2.388622,
+        2.881467,
+        -1.130348
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 180,
+      "timestamp": 1775759606412,
+      "error_vector": [
+        -2.388543,
+        -2.881629,
+        1.160104
+      ],
+      "error_distance_m": 3.9185156178463805,
+      "wrist_position": [
+        2.388543,
+        2.881629,
+        -1.130104
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 190,
+      "timestamp": 1775759606875,
+      "error_vector": [
+        -2.387977,
+        -2.880692,
+        1.160213
+      ],
+      "error_distance_m": 3.9175138489559926,
+      "wrist_position": [
+        2.387977,
+        2.880692,
+        -1.130213
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 200,
+      "timestamp": 1775759607343,
+      "error_vector": [
+        -2.387806,
+        -2.880513,
+        1.159935
+      ],
+      "error_distance_m": 3.917195660294492,
+      "wrist_position": [
+        2.387806,
+        2.880513,
+        -1.129935
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 210,
+      "timestamp": 1775759607812,
+      "error_vector": [
+        -2.388435,
+        -2.881484,
+        1.160441
+      ],
+      "error_distance_m": 3.9184429440738318,
+      "wrist_position": [
+        2.388435,
+        2.881484,
+        -1.130441
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 220,
+      "timestamp": 1775759608280,
+      "error_vector": [
+        -2.387993,
+        -2.881003,
+        1.16029
+      ],
+      "error_distance_m": 3.9177751005076846,
+      "wrist_position": [
+        2.387993,
+        2.881003,
+        -1.13029
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 230,
+      "timestamp": 1775759608752,
+      "error_vector": [
+        -2.38854,
+        -2.881882,
+        1.160461
+      ],
+      "error_distance_m": 3.9188055483839714,
+      "wrist_position": [
+        2.38854,
+        2.881882,
+        -1.130461
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 240,
+      "timestamp": 1775759609215,
+      "error_vector": [
+        -2.388672,
+        -2.882442,
+        1.160643
+      ],
+      "error_distance_m": 3.919351729610013,
+      "wrist_position": [
+        2.388672,
+        2.882442,
+        -1.130643
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 250,
+      "timestamp": 1775759609682,
+      "error_vector": [
+        -2.388726,
+        -2.882082,
+        1.160301
+      ],
+      "error_distance_m": 3.9190186231250546,
+      "wrist_position": [
+        2.388726,
+        2.882082,
+        -1.130301
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 260,
+      "timestamp": 1775759610147,
+      "error_vector": [
+        -2.388723,
+        -2.882168,
+        1.1606020000000001
+      ],
+      "error_distance_m": 3.9191691662081904,
+      "wrist_position": [
+        2.388723,
+        2.882168,
+        -1.130602
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 270,
+      "timestamp": 1775759610621,
+      "error_vector": [
+        -2.388459,
+        -2.881867,
+        1.160425
+      ],
+      "error_distance_m": 3.918734487177589,
+      "wrist_position": [
+        2.388459,
+        2.881867,
+        -1.130425
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 280,
+      "timestamp": 1775759611091,
+      "error_vector": [
+        -2.388562,
+        -2.881754,
+        1.160493
+      ],
+      "error_distance_m": 3.918734304263176,
+      "wrist_position": [
+        2.388562,
+        2.881754,
+        -1.130493
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 290,
+      "timestamp": 1775759611553,
+      "error_vector": [
+        -2.388112,
+        -2.881039,
+        1.160124
+      ],
+      "error_distance_m": 3.917824950076381,
+      "wrist_position": [
+        2.388112,
+        2.881039,
+        -1.130124
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 300,
+      "timestamp": 1775759612020,
+      "error_vector": [
+        -2.38782,
+        -2.88067,
+        1.160223
+      ],
+      "error_distance_m": 3.917404933247136,
+      "wrist_position": [
+        2.38782,
+        2.88067,
+        -1.130223
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 310,
+      "timestamp": 1775759612489,
+      "error_vector": [
+        -2.388513,
+        -2.881756,
+        1.160449
+      ],
+      "error_distance_m": 3.9186928785382,
+      "wrist_position": [
+        2.388513,
+        2.881756,
+        -1.130449
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 320,
+      "timestamp": 1775759612958,
+      "error_vector": [
+        -2.388748,
+        -2.88183,
+        1.160209
+      ],
+      "error_distance_m": 3.9188194753120484,
+      "wrist_position": [
+        2.388748,
+        2.88183,
+        -1.130209
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 330,
+      "timestamp": 1775759613426,
+      "error_vector": [
+        -2.388038,
+        -2.881273,
+        1.160166
+      ],
+      "error_distance_m": 3.9179643614419213,
+      "wrist_position": [
+        2.388038,
+        2.881273,
+        -1.130166
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 340,
+      "timestamp": 1775759613889,
+      "error_vector": [
+        -2.388782,
+        -2.88185,
+        1.160231
+      ],
+      "error_distance_m": 3.9188614213040243,
+      "wrist_position": [
+        2.388782,
+        2.88185,
+        -1.130231
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 350,
+      "timestamp": 1775759614359,
+      "error_vector": [
+        -2.388383,
+        -2.881652,
+        1.160437
+      ],
+      "error_distance_m": 3.9185336077111805,
+      "wrist_position": [
+        2.388383,
+        2.881652,
+        -1.130437
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 360,
+      "timestamp": 1775759614827,
+      "error_vector": [
+        -2.388759,
+        -2.881307,
+        1.160144
+      ],
+      "error_distance_m": 3.918422346948578,
+      "wrist_position": [
+        2.388759,
+        2.881307,
+        -1.130144
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 370,
+      "timestamp": 1775759615292,
+      "error_vector": [
+        -2.388027,
+        -2.880935,
+        1.160221
+      ],
+      "error_distance_m": 3.9177253854494447,
+      "wrist_position": [
+        2.388027,
+        2.880935,
+        -1.130221
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 380,
+      "timestamp": 1775759615760,
+      "error_vector": [
+        -2.388289,
+        -2.881249,
+        1.1602700000000001
+      ],
+      "error_distance_m": 3.918130500688051,
+      "wrist_position": [
+        2.388289,
+        2.881249,
+        -1.13027
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 390,
+      "timestamp": 1775759616232,
+      "error_vector": [
+        -2.387866,
+        -2.880887,
+        1.160301
+      ],
+      "error_distance_m": 3.9176156461968032,
+      "wrist_position": [
+        2.387866,
+        2.880887,
+        -1.130301
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 400,
+      "timestamp": 1775759616696,
+      "error_vector": [
+        -2.38763,
+        -2.880518,
+        1.160304
+      ],
+      "error_distance_m": 3.917201339941566,
+      "wrist_position": [
+        2.38763,
+        2.880518,
+        -1.130304
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 410,
+      "timestamp": 1775759617159,
+      "error_vector": [
+        -2.388251,
+        -2.881201,
+        1.160233
+      ],
+      "error_distance_m": 3.918061083711049,
+      "wrist_position": [
+        2.388251,
+        2.881201,
+        -1.130233
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 420,
+      "timestamp": 1775759617626,
+      "error_vector": [
+        -2.388108,
+        -2.881179,
+        1.16017
+      ],
+      "error_distance_m": 3.9179390856169523,
+      "wrist_position": [
+        2.388108,
+        2.881179,
+        -1.13017
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 430,
+      "timestamp": 1775759618092,
+      "error_vector": [
+        -2.388032,
+        -2.881108,
+        1.160248
+      ],
+      "error_distance_m": 3.91786364772844,
+      "wrist_position": [
+        2.388032,
+        2.881108,
+        -1.130248
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 440,
+      "timestamp": 1775759618558,
+      "error_vector": [
+        -2.38783,
+        -2.880621,
+        1.160194
+      ],
+      "error_distance_m": 3.9173664077000767,
+      "wrist_position": [
+        2.38783,
+        2.880621,
+        -1.130194
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 450,
+      "timestamp": 1775759619027,
+      "error_vector": [
+        -2.388187,
+        -2.881064,
+        1.160264
+      ],
+      "error_distance_m": 3.917930508413976,
+      "wrist_position": [
+        2.388187,
+        2.881064,
+        -1.130264
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 460,
+      "timestamp": 1775759619499,
+      "error_vector": [
+        -2.388258,
+        -2.881485,
+        1.1604940000000001
+      ],
+      "error_distance_m": 3.9183514905920576,
+      "wrist_position": [
+        2.388258,
+        2.881485,
+        -1.130494
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 470,
+      "timestamp": 1775759619967,
+      "error_vector": [
+        -2.388258,
+        -2.8812,
+        1.160371
+      ],
+      "error_distance_m": 3.9181054825266,
+      "wrist_position": [
+        2.388258,
+        2.8812,
+        -1.130371
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 480,
+      "timestamp": 1775759620429,
+      "error_vector": [
+        -2.388062,
+        -2.881393,
+        1.160278
+      ],
+      "error_distance_m": 3.9181004037131313,
+      "wrist_position": [
+        2.388062,
+        2.881393,
+        -1.130278
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 490,
+      "timestamp": 1775759620900,
+      "error_vector": [
+        -2.388031,
+        -2.880748,
+        1.160129
+      ],
+      "error_distance_m": 3.9175630681721003,
+      "wrist_position": [
+        2.388031,
+        2.880748,
+        -1.130129
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 500,
+      "timestamp": 1775759621366,
+      "error_vector": [
+        -2.388198,
+        -2.880974,
+        1.159981
+      ],
+      "error_distance_m": 3.91778723213002,
+      "wrist_position": [
+        2.388198,
+        2.880974,
+        -1.129981
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 510,
+      "timestamp": 1775759621834,
+      "error_vector": [
+        -2.388072,
+        -2.880887,
+        1.160112
+      ],
+      "error_distance_m": 3.9176852395894444,
+      "wrist_position": [
+        2.388072,
+        2.880887,
+        -1.130112
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 520,
+      "timestamp": 1775759622300,
+      "error_vector": [
+        -2.389033,
+        -2.882388,
+        1.160609
+      ],
+      "error_distance_m": 3.919521974490512,
+      "wrist_position": [
+        2.389033,
+        2.882388,
+        -1.130609
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 530,
+      "timestamp": 1775759622767,
+      "error_vector": [
+        -2.388767,
+        -2.882269,
+        1.1604160000000001
+      ],
+      "error_distance_m": 3.9192151844095013,
+      "wrist_position": [
+        2.388767,
+        2.882269,
+        -1.130416
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 540,
+      "timestamp": 1775759623237,
+      "error_vector": [
+        -2.38849,
+        -2.88198,
+        1.1604700000000001
+      ],
+      "error_distance_m": 3.9188498084769723,
+      "wrist_position": [
+        2.38849,
+        2.88198,
+        -1.13047
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 550,
+      "timestamp": 1775759623702,
+      "error_vector": [
+        -2.388592,
+        -2.881907,
+        1.160241
+      ],
+      "error_distance_m": 3.9187904865141743,
+      "wrist_position": [
+        2.388592,
+        2.881907,
+        -1.130241
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 560,
+      "timestamp": 1775759624166,
+      "error_vector": [
+        -2.388501,
+        -2.881659,
+        1.160408
+      ],
+      "error_distance_m": 3.9186020907647667,
+      "wrist_position": [
+        2.388501,
+        2.881659,
+        -1.130408
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 570,
+      "timestamp": 1775759624631,
+      "error_vector": [
+        -2.38875,
+        -2.882464,
+        1.16063
+      ],
+      "error_distance_m": 3.919411597510014,
+      "wrist_position": [
+        2.38875,
+        2.882464,
+        -1.13063
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 580,
+      "timestamp": 1775759625101,
+      "error_vector": [
+        -2.388802,
+        -2.882486,
+        1.16078
+      ],
+      "error_distance_m": 3.9195038900095507,
+      "wrist_position": [
+        2.388802,
+        2.882486,
+        -1.13078
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 590,
+      "timestamp": 1775759625566,
+      "error_vector": [
+        -2.388579,
+        -2.88175,
+        1.1604240000000001
+      ],
+      "error_distance_m": 3.918721291635449,
+      "wrist_position": [
+        2.388579,
+        2.88175,
+        -1.130424
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 600,
+      "timestamp": 1775759626033,
+      "error_vector": [
+        -2.388935,
+        -2.882373,
+        1.16059
+      ],
+      "error_distance_m": 3.9194455849589236,
+      "wrist_position": [
+        2.388935,
+        2.882373,
+        -1.13059
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 610,
+      "timestamp": 1775759626501,
+      "error_vector": [
+        -2.388338,
+        -2.881613,
+        1.160303
+      ],
+      "error_distance_m": 3.918437818292132,
+      "wrist_position": [
+        2.388338,
+        2.881613,
+        -1.130303
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 620,
+      "timestamp": 1775759626969,
+      "error_vector": [
+        -2.388192,
+        -2.881077,
+        1.1601380000000001
+      ],
+      "error_distance_m": 3.917905803849424,
+      "wrist_position": [
+        2.388192,
+        2.881077,
+        -1.130138
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 630,
+      "timestamp": 1775759627433,
+      "error_vector": [
+        -2.388353,
+        -2.881427,
+        1.160298
+      ],
+      "error_distance_m": 3.9183086986277638,
+      "wrist_position": [
+        2.388353,
+        2.881427,
+        -1.130298
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    }
+  ],
+  "rotation_tests": [],
+  "translation_tests": [],
+  "calibration_suggestions": [
+    {
+      "timestamp": "2026-04-10T02:33:29.451509",
+      "frame_count": 245,
+      "suggestions": {
+        "status": "READY",
+        "sample_count": 245,
+        "adjustments": [
+          {
+            "axis": "X",
+            "current_error_m": -2.388325163179918,
+            "suggested_adjustment_m": 2.388325163179918,
+            "adjustment_cm": 238.8325163179918,
+            "std_error_m": 0.0003822729130698133,
+            "confidence_interval": [
+              -2.3883738752661463,
+              -2.3882764510936862
+            ],
+            "needs_adjustment": true
+          },
+          {
+            "axis": "Y",
+            "current_error_m": -2.881413012552303,
+            "suggested_adjustment_m": 2.881413012552303,
+            "adjustment_cm": 288.1413012552303,
+            "std_error_m": 0.0005865743503271251,
+            "confidence_interval": [
+              -2.8814877582623852,
+              -2.8813382668422163
+            ],
+            "needs_adjustment": true
+          },
+          {
+            "axis": "Z",
+            "current_error_m": 1.160338744769874,
+            "suggested_adjustment_m": -1.160338744769874,
+            "adjustment_cm": -116.0338744769874,
+            "std_error_m": 0.00018777906352570185,
+            "confidence_interval": [
+              1.1603148165509973,
+              1.1603626729887513
+            ],
+            "needs_adjustment": true
+          }
+        ],
+        "total_adjustment_magnitude_m": 3.9182935107771404,
+        "total_adjustment_vector": [
+          2.388325163179918,
+          2.881413012552303,
+          -1.160338744769874
+        ],
+        "confidence": 0.9999299383992201,
+        "xml_suggestions": "<!-- MANUS Core Offset 调整建议 -->\n<!-- 将以下值添加到对应的tracker配置中 -->\n\n<!-- 调整X轴: 2.3883m (238.8cm) -->\n<offset_x>2.388325</offset_x>\n<!-- 调整Y轴: 2.8814m (288.1cm) -->\n<offset_y>2.881413</offset_y>\n<!-- 调整Z轴: -1.1603m (-116.0cm) -->\n<offset_z>-1.160339</offset_z>",
+        "human_readable": "建议调整: X轴: 增加 2.388m (238.8cm), Y轴: 增加 2.881m (288.1cm), Z轴: 减少 1.160m (116.0cm)"
+      }
+    }
+  ],
+  "end_time": "2026-04-10T02:33:47.528394",
+  "total_frames": 631,
+  "final_calibration_suggestions": {
+    "status": "READY",
+    "sample_count": 631,
+    "adjustments": [
+      {
+        "axis": "X",
+        "current_error_m": -2.388373161648176,
+        "suggested_adjustment_m": 2.388373161648176,
+        "adjustment_cm": 238.8373161648176,
+        "std_error_m": 0.00036417473190705,
+        "confidence_interval": [
+          -2.3884016310516705,
+          -2.3883446922446847
+        ],
+        "needs_adjustment": true
+      },
+      {
+        "axis": "Y",
+        "current_error_m": -2.8814894754358162,
+        "suggested_adjustment_m": 2.8814894754358162,
+        "adjustment_cm": 288.14894754358164,
+        "std_error_m": 0.0005841077817866034,
+        "confidence_interval": [
+          -2.8815351381319507,
+          -2.881443812739681
+        ],
+        "needs_adjustment": true
+      },
+      {
+        "axis": "Z",
+        "current_error_m": 1.1603474247226622,
+        "suggested_adjustment_m": -1.1603474247226622,
+        "adjustment_cm": -116.03474247226622,
+        "std_error_m": 0.0001871156585908856,
+        "confidence_interval": [
+          1.160332796933534,
+          1.1603620525117908
+        ],
+        "needs_adjustment": true
+      }
+    ],
+    "total_adjustment_magnitude_m": 3.918381566717207,
+    "total_adjustment_vector": [
+      2.388373161648176,
+      2.8814894754358162,
+      -1.1603474247226622
+    ],
+    "confidence": 0.9999311404235106,
+    "xml_suggestions": "<!-- MANUS Core Offset 调整建议 -->\n<!-- 将以下值添加到对应的tracker配置中 -->\n\n<!-- 调整X轴: 2.3884m (238.8cm) -->\n<offset_x>2.388373</offset_x>\n<!-- 调整Y轴: 2.8815m (288.1cm) -->\n<offset_y>2.881489</offset_y>\n<!-- 调整Z轴: -1.1603m (-116.0cm) -->\n<offset_z>-1.160347</offset_z>",
+    "human_readable": "建议调整: X轴: 增加 2.388m (238.8cm), Y轴: 增加 2.881m (288.1cm), Z轴: 减少 1.160m (116.0cm)"
+  }
+}

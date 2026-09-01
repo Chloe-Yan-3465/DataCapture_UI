@@ -1,0 +1,34 @@
+session:
+  output_root: F:/ASC_vla/CCF-A/DataCapture_UI/vr_data
+  label: pilot
+  # 0 means record until Ctrl+C.
+  duration_seconds: 0
+  manus_first_frame_timeout_seconds: 180
+
+manus:
+  host: 127.0.0.1
+  port: 8888
+  strict_device_mapping: true
+  fail_on_sequence_gap: true
+  save_jsonl: true
+  flush_every_rows: 240
+  # Fill these with the decimal or 0x-prefixed IDs reported by MANUS Core.
+  gloves:
+    left_glove: null
+    right_glove: null
+
+openvr:
+  # OpenVR is queried at this rate. This does not claim that the tracker itself
+  # produces new hardware samples at 120 Hz.
+  poll_hz: 120
+  predicted_seconds_from_now: 0.0
+  tracking_universe: standing
+  strict_device_mapping: true
+  save_jsonl: true
+  flush_every_rows: 120
+  # Fill these with SteamVR hardware serials (normally LHR-...).
+  trackers:
+    left_hand: ""
+    left_upper_arm: ""
+    right_hand: ""
+    right_upper_arm: ""

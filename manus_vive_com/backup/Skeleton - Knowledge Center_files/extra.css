@@ -1,0 +1,109 @@
+.md-grid {
+    max-width: 1650px; 
+}
+
+:root {
+  --md-primary-fg-color:        #00BC78;
+  --md-primary-fg-color--light: #49A584;
+  --md-primary-fg-color--dark:  #00BC78;
+  --md-accent-fg-color:        #80EBC7;
+  --md-accent-fg-color--light: #11CE85;
+  --md-accent-fg-color--dark:  #80EBC7;
+}
+
+.md-typeset ul li{
+  font-size: 0.75rem !important;
+}
+.md-typeset ol li{
+  font-size: 0.75rem !important;
+}
+p{
+  font-size: 0.75rem !important;
+}
+
+/* DARK THEME */
+[data-md-color-scheme=slate] h1{
+  color: #BFC1C6 !important;
+}
+[data-md-color-scheme=slate] h2{
+  color: #BFC1C6 !important;
+}
+[data-md-color-scheme=slate]  h3{
+  color: #BFC1C6 !important;
+}
+[data-md-color-scheme=slate] .md-typeset ul li{
+  color:#8E929B !important;
+}
+[data-md-color-scheme=slate] .md-typeset ol li{
+  color:#8E929B !important;
+}
+[data-md-color-scheme=slate]  p{
+  color:#8E929B !important;
+}
+
+/* LIGHT THEME */
+[data-md-color-scheme=default] h1{
+  color: #595959 !important;
+}
+[data-md-color-scheme=default] h2{  
+  color: #595959 !important;
+}
+[data-md-color-scheme=default] h3{
+  color: #666666 !important;
+}
+[data-md-color-scheme=default] .md-typeset ul li{
+  color:#999999 !important;
+}
+[data-md-color-scheme=default] .md-typeset ol li{
+  color:#999999 !important;
+}
+[data-md-color-scheme=default] p{
+  color:#999999 !important;
+}
+
+/* VIDEO */
+.video-wrapper {
+  position: relative;
+  display: block;
+  height: 0;
+  padding: 0;
+  overflow: hidden;
+  padding-bottom: 56.25%;
+}
+.video-wrapper > iframe {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes blink-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+@keyframes breathe {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+.dot {
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.blinking {
+  animation: blink 0.25s infinite;
+}
+.blinking-slow {
+  animation: blink-slow 1s infinite;
+}
+.breathing {
+  animation: breathe 4s infinite;
+}

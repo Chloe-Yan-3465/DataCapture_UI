@@ -1,0 +1,25 @@
+# Visual Studio cache
+.vs/
+*.ipch
+*.pch
+
+# Build outputs
+Debug/
+Release/
+x64/
+x86/
+build/
+out/
+bin/
+obj/
+Temp/
+captures/
+capture_config.yaml
+.uv-cache/
+.uv-python/
+__pycache__/
+*.py[cod]
+
+# Large redistributable SDK binary libraries (GitHub rejects files over 100 MB)
+**/SDKClient_Linux/ManusSDK/lib/*.so
+**/SDKMinimalClient_Linux/ManusSDK/lib/*.so

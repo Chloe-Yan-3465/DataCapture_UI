@@ -1,0 +1,16 @@
+{
+  "session_id": "20260410_003838",
+  "start_time": "2026-04-10T00:38:38.788559",
+  "frames": [],
+  "rotation_tests": [],
+  "translation_tests": [],
+  "calibration_suggestions": [],
+  "end_time": "2026-04-10T00:39:02.128829",
+  "total_frames": 651,
+  "final_calibration_suggestions": {
+    "status": "INSUFFICIENT_DATA",
+    "message": "需要更多数据 (当前: 0/50)",
+    "adjustments": null,
+    "confidence": 0.0
+  }
+}

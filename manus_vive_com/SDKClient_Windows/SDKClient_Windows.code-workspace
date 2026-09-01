@@ -1,0 +1,10 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../SDKMinimalClient_Windows"
+		}
+	]
+}

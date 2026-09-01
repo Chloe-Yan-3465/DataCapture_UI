@@ -1,0 +1,163 @@
+{
+  "session_id": "20260414_150758",
+  "start_time": "2026-04-14T15:07:58.639926",
+  "frames": [
+    {
+      "frame": 90,
+      "timestamp": 1776150498638,
+      "error_vector": [
+        -2.322617,
+        -2.865369,
+        1.2019250000000001
+      ],
+      "error_distance_m": 3.879370173169222,
+      "wrist_position": [
+        2.322617,
+        2.865369,
+        -1.171925
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 220,
+      "timestamp": 1776150504759,
+      "error_vector": [
+        -2.322617,
+        -2.865369,
+        1.2019250000000001
+      ],
+      "error_distance_m": 3.879370173169222,
+      "wrist_position": [
+        2.322617,
+        2.865369,
+        -1.171925
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 360,
+      "timestamp": 1776150511348,
+      "error_vector": [
+        -2.322617,
+        -2.865369,
+        1.2019250000000001
+      ],
+      "error_distance_m": 3.879370173169222,
+      "wrist_position": [
+        2.322617,
+        2.865369,
+        -1.171925
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 490,
+      "timestamp": 1776150517453,
+      "error_vector": [
+        -2.322617,
+        -2.865369,
+        1.2019250000000001
+      ],
+      "error_distance_m": 3.879370173169222,
+      "wrist_position": [
+        2.322617,
+        2.865369,
+        -1.171925
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    },
+    {
+      "frame": 620,
+      "timestamp": 1776150523556,
+      "error_vector": [
+        -2.322617,
+        -2.865369,
+        1.2019250000000001
+      ],
+      "error_distance_m": 3.879370173169222,
+      "wrist_position": [
+        2.322617,
+        2.865369,
+        -1.171925
+      ],
+      "tracker_position": [
+        0.0,
+        0.0,
+        0.03
+      ]
+    }
+  ],
+  "rotation_tests": [],
+  "translation_tests": [],
+  "calibration_suggestions": [],
+  "end_time": "2026-04-14T15:08:47.399613",
+  "total_frames": 683,
+  "final_calibration_suggestions": {
+    "status": "READY",
+    "sample_count": 63,
+    "adjustments": [
+      {
+        "axis": "X",
+        "current_error_m": -0.7004717936507938,
+        "suggested_adjustment_m": 0.7004717936507938,
+        "adjustment_cm": 70.04717936507939,
+        "std_error_m": 1.0659582366366251,
+        "confidence_interval": [
+          -0.9689298991011697,
+          -0.432013688200419
+        ],
+        "needs_adjustment": true
+      },
+      {
+        "axis": "Y",
+        "current_error_m": -0.864158904761905,
+        "suggested_adjustment_m": 0.864158904761905,
+        "adjustment_cm": 86.4158904761905,
+        "std_error_m": 1.3150526697054459,
+        "confidence_interval": [
+          -1.1953506308003505,
+          -0.5329671787234589
+        ],
+        "needs_adjustment": true
+      },
+      {
+        "axis": "Z",
+        "current_error_m": 0.36248531746031737,
+        "suggested_adjustment_m": -0.36248531746031737,
+        "adjustment_cm": -36.24853174603174,
+        "std_error_m": 0.5516199414580526,
+        "confidence_interval": [
+          0.22356163422134906,
+          0.5014090006992855
+        ],
+        "needs_adjustment": true
+      }
+    ],
+    "total_adjustment_magnitude_m": 1.1699687823843687,
+    "total_adjustment_vector": [
+      0.7004717936507938,
+      0.864158904761905,
+      -0.36248531746031737
+    ],
+    "confidence": 0.378,
+    "xml_suggestions": "<!-- 警告: 检测到坐标系不匹配。请检查MANUS Core配置 -->\n<!-- MANUS Core Offset 调整建议 -->\n<!-- 将以下值添加到对应的tracker配置中 -->\n\n<!-- 调整X轴: 0.7005m (70.0cm) -->\n<offset_x>0.700472</offset_x>\n<!-- 调整Y轴: 0.8642m (86.4cm) -->\n<offset_y>0.864159</offset_y>\n<!-- 调整Z轴: -0.3625m (-36.2cm) -->\n<offset_z>-0.362485</offset_z>",
+    "human_readable": "[警告] 检测到坐标系不匹配。建议可能不准确。请检查MANUS Core中Tracker的配置。\n建议调整: X轴: 增加 0.700m (70.0cm), Y轴: 增加 0.864m (86.4cm), Z轴: 减少 0.362m (36.2cm)",
+    "coordinate_issue_detected": true
+  }
+}
